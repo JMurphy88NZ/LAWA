@@ -1,0 +1,13 @@
+library(shiny)
+
+
+site_data <- readRDS("~/My-Local-Workspace/Github_Repos/lawa-trends/For_Andrew/N03N_filtered.rds")
+
+# Source the UI and server files
+
+
+source("For_Andrew/shiny/shiny_dev/ui.R")
+source("For_Andrew/shiny/shiny_dev/server.R")
+
+# Run the application
+shinyApp(ui = ui, server = server)
