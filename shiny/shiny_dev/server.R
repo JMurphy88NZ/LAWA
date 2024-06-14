@@ -1,5 +1,9 @@
-source("For_Andrew/shiny/shiny_dev/shiny_simulate_trends.R")
-source("For_Andrew/shiny/shiny_dev/shiny_replace_trends.R")
+#source("For_Andrew/shiny/shiny_dev/shiny_simulate_trends.R")
+#source("For_Andrew/shiny/shiny_dev/shiny_replace_trends.R")
+
+
+source(here::here("shiny/shiny_dev/shiny_simulate_trends.R"))
+source(here::here("shiny/shiny_dev/shiny_replace_trends.R"))
 
 
 library(shiny)

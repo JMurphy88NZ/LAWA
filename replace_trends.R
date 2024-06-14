@@ -1,7 +1,15 @@
 
-source("For_Andrew/simulate_trends_functions.R")
+
+source(here::here("simulate_trends_functions.R"))
+
+
+
+
+#source("For_Andrew/simulate_trends_functions.R")
 #load LandwaterPeople (LWP) functions for trend estimation 
-source("For_Andrew/LWPTrends_v2102.R")
+
+source(here::here("LWPTrends_v2102.R"))
+#source("For_Andrew/LWPTrends_v2102.R")
 
 library(ggplot2)
 
