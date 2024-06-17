@@ -134,6 +134,31 @@ scale_stl_noise <- function(stl_data, lambda = seq(from = -1, to = 3, by = 0.5),
 #test_noise <- scale_stl_noise(test_stl)
 
 
+#' Filter Time Series Data
+#'
+#' This function filters a time series data frame to keep only the last specified number of years.
+#'
+#' @param stl_data A data frame containing the time series data with a column `yearmon` representing the date in `%Y %b` format.
+#' @param years An integer specifying the number of years to keep. Defaults to 5.
+#'
+#' @return A data frame filtered to keep only the last specified number of years.
+#' @export
+#'
+#' @examples
+#' # Assuming your data is loaded into a data frame named `data`
+#' filtered_data <- filter_time_series(data, 5)  # Keep the last 5 years
+#' print(filtered_data)
+filter_time_series <- function(stl_data, years = 5) {
+  #
+  months = round(years * 12)
+  
+  stl_data_filt <- stl_data %>% 
+    slice_tail(n = months)
+  
+  return(stl_data_filt)
+}
+
+
 
 #' Analyze Trend with Noise
 #'
@@ -182,3 +207,174 @@ analyze_trend_with_noise <- function(data, lambda = seq(from = -1, to  = 3, by =
   # Step 4: Return the results
   return(list(stl_data = stl_data, estimate_results = estimate_results))
 }
+
+
+
+
+
+analyze_trend_rolling <- function(data, lambda = seq(from = -1, to  = 3, by =  0.5), 
+                                     is_seasonal = TRUE, 
+                                     trend_params = list(modify_trend = NULL, initial_amplitude = NULL), 
+                                     analysis_params = list(), mod_fun, years = 5, ...){
+  # Step 1: Get STL decomposition
+  stl_data <- Get_STL(data)
+  
+  # Join with metadata
+  comp_df <- stl_data$stl[[1]]$fit$decomposition
+  
+  # Step 2: Optionally modify the trend component
+  if (is.null(trend_params$modify_trend)) {
+    message("Keeping original trend component")
+    estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
+  } else {
+    trend_params$total_length <- nrow(comp_df)  
+    message(paste("modify_trend option:", trend_params$modify_trend))
+    
+    # Remove the modify_trend element from trend_params
+    trend_params <- trend_params[setdiff(names(trend_params), "modify_trend")]
+    
+    # Modify trend component
+    comp_df$trend <- do.call(mod_fun, trend_params)
+    
+    # Update STL data
+    comp_df$final_series <- comp_df$trend + comp_df$remainder
+    comp_df$season_adjust <- comp_df$final_series - comp_df$season_year
+    
+    ###rolling window for   analysis
+    
+    #add param for full length
+    full_length <- nrow(comp_df)/12  
+    
+    comp_df <- filter_time_series <- function(comp_df, years = full_length)
+    
+
+    stl_data$stl[[1]]$fit$decomposition <- comp_df
+    
+  
+    
+    estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
+  }
+  
+  # Step 4: Return the results
+  return(list(stl_data = stl_data, estimate_results = estimate_results))
+}
+
+
+analyze_trend_rolling(N03N_filtered$`GW-00004`)
+
+  
+month_len <- components(test_stl) %>% 
+  nrow()
+
+years =  month_len/12
+
+
+
+filter_time_series <- function(stl_data, years = 5) {
+  #
+  months = round(years * 12)
+  
+  stl_data_filt <- stl_data %>% 
+    slice_tail(n = months)
+  
+  return(stl_data_filt)
+}
+
+
+
+
+
+
+rolling_trend <- function(stl_data, periods = list("full_length", 5), 
+                            is_seasonal = TRUE, analysis_params = list()) {
+  
+  # Container lists
+  complist <- list()
+  senslope_res_list <- list()
+  
+  comp_df <- components(stl_data) %>% as_tibble()
+  
+  # Needs extra columns for LWP functions to work
+  orig_data <- stl_data$orig_data[[1]] %>% 
+    select(lawa_site_id, CenType, Censored, 
+           yearmon, Season, Year, myDate, RawValue)
+  
+  # Add columns so LWP functions work
+  comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
+  
+  
+  # filter
+  
+  for (period in periods) {
+    
+    if (period == "full_length"){
+      years = nrow(comp_df)/12
+    } else {
+      years = period
+    }
+    
+    comp_df_filt <- filter_time_series(stl_data = comp_df, years = years)
+    
+    
+    if (is_seasonal == TRUE) {
+      senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame( comp_df_filt )), analysis_params))  # Pass additional arguments
+    } else {
+      senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame( comp_df_filt )), analysis_params))  # Pass additional arguments
+    }
+    
+    slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
+                       lci = senslope_res$Sen_Lci / 12,
+                       uci = senslope_res$Sen_Uci / 12,
+                       CI_width = uci - lci)
+    
+    senslope_res_list[[as.character(period)]] <- slope_df
+  }
+  
+
+  
+  # Combine each estimate into same tidy dataframe
+  senslope_res_list <- imap_dfr(senslope_res_list, ~ tibble(period = .y, .x))
+  
+  estimate_results <- senslope_res_list %>% 
+    mutate(CI_width = uci - lci)
+  
+  return(estimate_results)
+}
+
+
+rolling_trend(test_stl)
+
+
+
+
+
+
+filter_custom_period <- function(ts_data, period = c(5, 0)) {
+  
+  total_years <- nrow(ts_data) / 12
+  start_years <- period[1]
+  end_years <- period[2]
+  
+
+
+  # Check if requested start of period is outside time series
+  if (start_years > total_years ) {
+    stop("The start period is greater than  the total length of the data.")
+  }
+  
+  start_months <- round(start_years * 12)
+  end_months <- round(end_years * 12)
+  
+  total_months <- nrow(ts_data)
+  
+  # Calculate the start and end rows for slicing
+  start_row <- max(total_months - start_months + 1, 1)
+  end_row <- total_months - end_months
+  
+  # Filter for the given range
+  ts_data_filt <- ts_data %>% 
+    slice(start_row:end_row)
+  
+  return(ts_data_filt)
+}
+
