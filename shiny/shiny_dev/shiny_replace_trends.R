@@ -5,6 +5,7 @@ source(here::here("LWPTrends_v2102.R"))
 
 
 library(ggplot2)
+library(withr)
 
 #' Get STL Decomposition
 #'
@@ -134,31 +135,6 @@ scale_stl_noise <- function(stl_data, lambda = seq(from = -1, to = 3, by = 0.5),
 #test_noise <- scale_stl_noise(test_stl)
 
 
-#' Filter Time Series Data
-#'
-#' This function filters a time series data frame to keep only the last specified number of years.
-#'
-#' @param stl_data A data frame containing the time series data with a column `yearmon` representing the date in `%Y %b` format.
-#' @param years An integer specifying the number of years to keep. Defaults to 5.
-#'
-#' @return A data frame filtered to keep only the last specified number of years.
-#' @export
-#'
-#' @examples
-#' # Assuming your data is loaded into a data frame named `data`
-#' filtered_data <- filter_time_series(data, 5)  # Keep the last 5 years
-#' print(filtered_data)
-filter_time_series <- function(stl_data, years = 5) {
-  #
-  months = round(years * 12)
-  
-  stl_data_filt <- stl_data %>% 
-    slice_tail(n = months)
-  
-  return(stl_data_filt)
-}
-
-
 
 #' Analyze Trend with Noise
 #'
@@ -260,106 +236,48 @@ analyze_trend_rolling <- function(data, lambda = seq(from = -1, to  = 3, by =  0
 }
 
 
-analyze_trend_rolling(N03N_filtered$`GW-00004`)
-
-  
-month_len <- components(test_stl) %>% 
-  nrow()
-
-years =  month_len/12
 
 
 
-filter_time_series <- function(stl_data, years = 5) {
-  #
-  months = round(years * 12)
-  
-  stl_data_filt <- stl_data %>% 
-    slice_tail(n = months)
-  
-  return(stl_data_filt)
-}
-
-
-
-
-
-
-rolling_trend <- function(stl_data, periods = list("full_length", 5), 
-                            is_seasonal = TRUE, analysis_params = list()) {
-  
-  # Container lists
-  complist <- list()
-  senslope_res_list <- list()
-  
-  comp_df <- components(stl_data) %>% as_tibble()
-  
-  # Needs extra columns for LWP functions to work
-  orig_data <- stl_data$orig_data[[1]] %>% 
-    select(lawa_site_id, CenType, Censored, 
-           yearmon, Season, Year, myDate, RawValue)
-  
-  # Add columns so LWP functions work
-  comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
-  
-  
-  # filter
-  
-  for (period in periods) {
-    
-    if (period == "full_length"){
-      years = nrow(comp_df)/12
-    } else {
-      years = period
-    }
-    
-    comp_df_filt <- filter_time_series(stl_data = comp_df, years = years)
-    
-    
-    if (is_seasonal == TRUE) {
-      senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame( comp_df_filt )), analysis_params))  # Pass additional arguments
-    } else {
-      senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame( comp_df_filt )), analysis_params))  # Pass additional arguments
-    }
-    
-    slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
-                       lci = senslope_res$Sen_Lci / 12,
-                       uci = senslope_res$Sen_Uci / 12,
-                       CI_width = uci - lci)
-    
-    senslope_res_list[[as.character(period)]] <- slope_df
-  }
-  
-
-  
-  # Combine each estimate into same tidy dataframe
-  senslope_res_list <- imap_dfr(senslope_res_list, ~ tibble(period = .y, .x))
-  
-  estimate_results <- senslope_res_list %>% 
-    mutate(CI_width = uci - lci)
-  
-  return(estimate_results)
-}
-
-
-rolling_trend(test_stl)
-
-
-
-
-
-
+#' Filter Time Series Data for Custom Periods
+#'
+#' This function filters a time series data frame for custom periods.
+#'
+#' @param ts_data A data frame containing the time series data.
+#' @param period A numeric vector of length 2 specifying the start and end years. The default is c(5, 0).
+#'
+#' @return A filtered data frame containing the data for the specified period.
+#' @export
+#'
+#' @examples
+#' # Example time series data
+#' ts_data <- tibble(
+#'   yearmon = seq(as.Date("2000-01-01"), by = "month", length.out = 240),
+#'   value = rnorm(240)
+#' )
+#'
+#' # Valid period
+#' filtered_data <- filter_custom_period(ts_data, c(5, 3))
+#' print(filtered_data)
+#'
+#' # Invalid period: start period longer than total length
+#' # This will stop with an error
+#' try(filter_custom_period(ts_data, c(25, 5)))
+#'
 filter_custom_period <- function(ts_data, period = c(5, 0)) {
+  
+  # Check if period is a numeric vector of length 2
+  if (!is.numeric(period) || length(period) != 2) {
+    stop("The 'period' argument must be a numeric vector of length 2 specifying the start and end years.")
+  }
   
   total_years <- nrow(ts_data) / 12
   start_years <- period[1]
   end_years <- period[2]
   
-
-
   # Check if requested start of period is outside time series
-  if (start_years > total_years ) {
-    stop("The start period is greater than  the total length of the data.")
+  if (start_years > total_years) {
+    stop("The start period is greater than the total length of the data.")
   }
   
   start_months <- round(start_years * 12)
@@ -378,3 +296,167 @@ filter_custom_period <- function(ts_data, period = c(5, 0)) {
   return(ts_data_filt)
 }
 
+
+#' Rolling Trend Analysis
+#'
+#' This function performs rolling trend analysis on STL decomposed time series data.
+#'
+#' @param stl_data A list containing the STL decomposed time series data.
+#' @param periods A list specifying the periods for which the trend analysis should be performed. Can include "full_length" and numeric vectors specifying start and end years.
+#' @param is_seasonal A logical value indicating whether the data is seasonal. Defaults to TRUE.
+#' @param analysis_params A list of additional parameters to be passed to the trend analysis functions.
+#'
+#' @return A data frame containing the estimated slopes and confidence intervals for each period.
+#' @export
+#'
+#' @examples
+#' # Example usage
+#' results <- rolling_trend(stl_data, periods = list("full_length", c(5, 0)), is_seasonal = TRUE, analysis_params = list())
+#' print(results)
+
+rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)), 
+                          is_seasonal = TRUE, analysis_params = list()) {
+  
+  # Container lists
+  complist <- list()
+  senslope_res_list <- list()
+  
+  comp_df <- components(stl_data) %>% as_tibble()
+  
+  # Needs extra columns for LWP functions to work
+  orig_data <- stl_data$orig_data[[1]] %>% 
+    select(lawa_site_id, CenType, Censored, 
+           yearmon, Season, Year, myDate, RawValue)
+  
+  # Add columns so LWP functions work
+  comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
+  
+  # Iterate over each period and perform trend analysis
+  for (period in periods) {
+    
+    if (is.character(period) && period == "full_length") {
+      # Full length analysis without filtering
+      if (is_seasonal) {
+        senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))
+      } else {
+        senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))
+        
+        
+        # Create a data frame with the results
+        slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
+                           lci = senslope_res$Sen_Lci / 12,
+                           uci = senslope_res$Sen_Uci / 12,
+                           CI_width = uci - lci,
+                           data = list(comp_df))
+        
+        senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- slope_df  
+        
+        
+      }
+    } else if (is.numeric(period) && length(period) == 2) {
+      # Filter the data for the specified period
+      comp_df_filt <- filter_custom_period(comp_df, period)
+      
+      if (is_seasonal) {
+        senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df_filt)), analysis_params))
+      } else {
+        senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df_filt)), analysis_params))
+      }
+      
+      # Create a data frame with the results
+      slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
+                         lci = senslope_res$Sen_Lci / 12,
+                         uci = senslope_res$Sen_Uci / 12,
+                         CI_width = uci - lci,
+                         data = list(comp_df_filt))
+      
+      senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- slope_df
+      
+      
+      
+    } else {
+      stop("Invalid period specified. Period should be 'full_length' or a numeric vector of length 2.")
+    }
+    
+
+  }
+  
+  # Combine each estimate into the same tidy data frame
+  senslope_res_list <- imap_dfr(senslope_res_list, ~ tibble(period = .y, .x))
+  
+  estimate_results <- senslope_res_list %>% 
+    mutate(CI_width = uci - lci)
+  
+  
+  
+  period_plot <- plot_period_comparison(comp_df, period_df =  estimate_results)
+  
+  return( list(estimate_results,period_plot ))
+}
+
+
+
+#test_rolling <- rolling_trend(test_stl, periods = list("full_length", c(15,0), c(15,10), c(10,5), c(5,0)))
+
+
+#' Plot Period Comparison
+#'
+#' This function creates a plot comparing the original time series data with the estimated slopes for different periods.
+#'
+#' @param full_data A data frame containing the full time series data with columns `yearmon` and `final_series`.
+#' @param period_df A data frame containing the period-specific slope estimates and nested data for each period. The data frame should have columns `period`, `est_slope`, and `data` (where `data` is a nested data frame containing `yearmon`).
+#'
+#' @return A ggplot object showing the original time series data and the estimated slopes for different periods.
+#' @export
+#'
+#' @examples
+#' # Example usage
+#' full_data <- tibble(
+#'   yearmon = seq(as.Date("2000-01-01"), by = "month", length.out = 240),
+#'   final_series = rnorm(240)
+#' )
+#'
+#' period_df <- tibble(
+#'   period = c("period_10_0", "period_10_5", "period_5_0"),
+#'   est_slope = c(-0.0003, 0.00167, -0.00252),
+#'   data = list(
+#'     tibble(yearmon = seq(as.Date("2000-01-01"), by = "month", length.out = 10)),
+#'     tibble(yearmon = seq(as.Date("2005-01-01"), by = "month", length.out = 10)),
+#'     tibble(yearmon = seq(as.Date("2010-01-01"), by = "month", length.out = 10))
+#'   )
+#' )
+#'
+#' plot_period_comparison(full_data, period_df)
+plot_period_comparison <- function(full_data, period_df){
+  
+  orig_plot <- full_data %>% 
+    ggplot(aes(x = yearmon, y = final_series))+
+    geom_line()
+  
+  
+  slope_df <- period_df %>% 
+    tidyr::hoist(data, "yearmon") %>% 
+    tidyr::unnest(yearmon)
+  
+  
+  slope_df <- slope_df %>% 
+    mutate(period = as.factor(period)) %>% 
+    group_by(period ) %>% 
+    mutate(rowid = dplyr::row_number(),
+           slope_line = est_slope*rowid)
+  
+  orig_plot <- orig_plot+
+    geom_line(data = slope_df,
+              aes(x = yearmon, y = slope_line, colour = period, ),show.legend = FALSE)
+  
+  return(orig_plot)
+  
+}
+
+
+#plot_period_comparison(components(test_stl),test_rolling )
+
+
+
+
+                     
