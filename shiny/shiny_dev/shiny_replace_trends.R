@@ -3,9 +3,11 @@
 #source("For_Andrew/LWPTrends_v2102.R")
 source(here::here("LWPTrends_v2102.R"))
 
-
+#library(tidyverse)
 library(ggplot2)
 library(withr)
+library(feasts)
+library(tsibble)
 
 #' Get STL Decomposition
 #'
@@ -297,6 +299,63 @@ filter_custom_period <- function(ts_data, period = c(5, 0)) {
 }
 
 
+
+#' Plot Period Comparison
+#'
+#' This function creates a plot comparing the original time series data with the estimated slopes for different periods.
+#'
+#' @param full_data A data frame containing the full time series data with columns `yearmon` and `final_series`.
+#' @param period_df A data frame containing the period-specific slope estimates and nested data for each period. The data frame should have columns `period`, `est_slope`, and `data` (where `data` is a nested data frame containing `yearmon`).
+#'
+#' @return A ggplot object showing the original time series data and the estimated slopes for different periods.
+#' @export
+#'
+#' @examples
+#' # Example usage
+#' full_data <- tibble(
+#'   yearmon = seq(as.Date("2000-01-01"), by = "month", length.out = 240),
+#'   final_series = rnorm(240)
+#' )
+#'
+#' period_df <- tibble(
+#'   period = c("period_10_0", "period_10_5", "period_5_0"),
+#'   est_slope = c(-0.0003, 0.00167, -0.00252),
+#'   data = list(
+#'     tibble(yearmon = seq(as.Date("2000-01-01"), by = "month", length.out = 10)),
+#'     tibble(yearmon = seq(as.Date("2005-01-01"), by = "month", length.out = 10)),
+#'     tibble(yearmon = seq(as.Date("2010-01-01"), by = "month", length.out = 10))
+#'   )
+#' )
+#'
+#' plot_period_comparison(full_data, period_df)
+plot_period_comparison <- function(full_data, period_df){
+  
+  orig_plot <- full_data %>% 
+    ggplot(aes(x = yearmon, y = final_series))+
+    geom_line()
+  
+  
+  slope_df <- period_df %>% 
+    tidyr::hoist(data, "yearmon") %>% 
+    tidyr::unnest(yearmon)
+  
+  
+  slope_df <- slope_df %>% 
+    mutate(period = as.factor(period)) %>% 
+    group_by(period ) %>% 
+    mutate(rowid = dplyr::row_number(),
+           slope_line = est_slope*rowid)
+  
+  orig_plot <- orig_plot+
+    geom_line(data = slope_df,
+              aes(x = yearmon, y = slope_line, colour = period, ),show.legend = FALSE)
+  
+  return(orig_plot)
+  
+}
+
+
+
 #' Rolling Trend Analysis
 #'
 #' This function performs rolling trend analysis on STL decomposed time series data.
@@ -395,68 +454,10 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
 }
 
 
-
+#undebug(rolling_trend)
 #test_rolling <- rolling_trend(test_stl, periods = list("full_length", c(15,0), c(15,10), c(10,5), c(5,0)))
 
 
-#' Plot Period Comparison
-#'
-#' This function creates a plot comparing the original time series data with the estimated slopes for different periods.
-#'
-#' @param full_data A data frame containing the full time series data with columns `yearmon` and `final_series`.
-#' @param period_df A data frame containing the period-specific slope estimates and nested data for each period. The data frame should have columns `period`, `est_slope`, and `data` (where `data` is a nested data frame containing `yearmon`).
-#'
-#' @return A ggplot object showing the original time series data and the estimated slopes for different periods.
-#' @export
-#'
-#' @examples
-#' # Example usage
-#' full_data <- tibble(
-#'   yearmon = seq(as.Date("2000-01-01"), by = "month", length.out = 240),
-#'   final_series = rnorm(240)
-#' )
-#'
-#' period_df <- tibble(
-#'   period = c("period_10_0", "period_10_5", "period_5_0"),
-#'   est_slope = c(-0.0003, 0.00167, -0.00252),
-#'   data = list(
-#'     tibble(yearmon = seq(as.Date("2000-01-01"), by = "month", length.out = 10)),
-#'     tibble(yearmon = seq(as.Date("2005-01-01"), by = "month", length.out = 10)),
-#'     tibble(yearmon = seq(as.Date("2010-01-01"), by = "month", length.out = 10))
-#'   )
-#' )
-#'
-#' plot_period_comparison(full_data, period_df)
-plot_period_comparison <- function(full_data, period_df){
-  
-  orig_plot <- full_data %>% 
-    ggplot(aes(x = yearmon, y = final_series))+
-    geom_line()
-  
-  
-  slope_df <- period_df %>% 
-    tidyr::hoist(data, "yearmon") %>% 
-    tidyr::unnest(yearmon)
-  
-  
-  slope_df <- slope_df %>% 
-    mutate(period = as.factor(period)) %>% 
-    group_by(period ) %>% 
-    mutate(rowid = dplyr::row_number(),
-           slope_line = est_slope*rowid)
-  
-  orig_plot <- orig_plot+
-    geom_line(data = slope_df,
-              aes(x = yearmon, y = slope_line, colour = period, ),show.legend = FALSE)
-  
-  return(orig_plot)
-  
-}
-
-
-#plot_period_comparison(components(test_stl),test_rolling )
-
-
-
+#plot_period_comparison(full_data = test_stl$orig_data[[1]],period_df = test_rolling[[1]])
 
                      

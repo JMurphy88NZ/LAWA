@@ -8,7 +8,7 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput("site", "Select Site Data:", choices = NULL),
       selectInput("series_type", "Select Trend Type:",
-                  choices = c("Cosine", "Linear Trend", "Level Shift With Ramp", "Linex")),
+                  choices = c("NULL", "Cosine", "Linear Trend", "Level Shift With Ramp", "Linex")),
       
       wellPanel(
         titlePanel("Lambda Parameters"),
