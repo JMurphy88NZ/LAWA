@@ -47,9 +47,13 @@ ui <- fluidPage(
         sliderInput("scale", "Scale:", min = 0, max = 1, value = 0.3, step = 0.05)
       ),
       
-
+      wellPanel(
+        titlePanel("Rolling Period Parameters"),
+        textInput("rolling_periods", "Enter Rolling Periods (e.g., full_length, 5,0; 12,1):", value = "full_length")
+      ),
       
-      actionButton("estimate_btn", "Estimate")
+      actionButton("estimate_noise_btn", "Estimate with Noise Scaling"),
+      actionButton("estimate_rolling_btn", "Estimate with Rolling Trend")
     ),
     
     mainPanel(

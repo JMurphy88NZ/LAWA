@@ -48,6 +48,10 @@ server <- function(input, output, session) {
     req(data())
     req(input$series_type)
     
+    if (input$series_type == "NULL") {
+      return(NULL)
+    }
+    
     input_data <- data()
     total_length <- nrow(input_data)
     
@@ -87,8 +91,6 @@ server <- function(input, output, session) {
         scale = input$scale
       )
       trend_function <- generate_linex
-    } else if (input$series_type == "NULL") {
-      return(NULL)
     } else {
       stop("Invalid modify_trend option")
     }
@@ -111,14 +113,13 @@ server <- function(input, output, session) {
     }
   })
   
-  observeEvent(input$estimate_btn, {
+  observeEvent(input$estimate_noise_btn, {
     trend_data <- simulate_trend()
     lambda <- seq(input$lambda_min, input$lambda_max, by = input$lambda_step)
     
     if (is.null(trend_data)) {
       input_data <- data()
       trend_params <- list(modify_trend = NULL)
-      mod_fun <- NULL
     } else {
       input_data <- trend_data$input_data
       
@@ -167,7 +168,7 @@ server <- function(input, output, session) {
              y = "Value")
     })
     
-    output$componentsPlot <- renderPlot({
+    output$simcomponentsPlot <- renderPlot({
       autoplot(components(result$stl_data))
     })
     
@@ -180,6 +181,56 @@ server <- function(input, output, session) {
     
     output$summary <- renderPrint({
       result$estimate_results
+    })
+  })
+  
+  observeEvent(input$estimate_rolling_btn, {
+    trend_data <- simulate_trend()
+    
+    if (is.null(trend_data)) {
+      input_data <- data()
+    } else {
+      input_data <- trend_data$input_data
+    }
+    
+    stl_data <- Get_STL(input_data)
+    
+    # Parse the periods input
+    periods_input <- strsplit(input$rolling_periods, ";")[[1]]
+    periods <- lapply(periods_input, function(period) {
+      if (period == "full_length") {
+        return("full_length")
+      } else {
+        as.numeric(unlist(strsplit(period, ",")))
+      }
+    })
+    
+    result <- rolling_trend(stl_data, periods = periods, is_seasonal = TRUE)
+    
+    output$timeSeriesPlot <- renderPlot({
+      plot_data <- result[[1]]$data[[1]]
+      
+      ggplot(plot_data, aes(x = yearmon, y = final_series)) +
+        geom_line() +
+        labs(title = "Time Series with Rolling Trend Analysis",
+             x = "Time",
+             y = "Value")
+    })
+    
+    output$simcomponentsPlot <- renderPlot({
+      autoplot(components(stl_data$stl[[1]]$fit))
+    })
+    
+    output$slope_est_Plot <- renderPlot({
+      result[[1]] %>% 
+        ggplot(aes(x = period, y = est_slope)) +
+        geom_point() +
+        geom_linerange(aes(ymin = lci, ymax = uci)) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    })
+    
+    output$summary <- renderPrint({
+      result[[1]]
     })
   })
 }
