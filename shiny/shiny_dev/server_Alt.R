@@ -208,15 +208,7 @@ server <- function(input, output, session) {
     result <- rolling_trend(stl_data, periods = periods, is_seasonal = TRUE)
     
     output$timeSeriesPlot <- renderPlot({
-      
-       result[[2]]
-      
-      # plot_data <- result[[1]]$data[[1]]
-      # ggplot(plot_data, aes(x = yearmon, y = final_series)) +
-      #   geom_line() +
-      #   labs(title = "Time Series with Rolling Trend Analysis",
-      #        x = "Time",
-      #        y = "Value")
+      result[[2]]
     })
     
     output$simcomponentsPlot <- renderPlot({
@@ -229,6 +221,10 @@ server <- function(input, output, session) {
         geom_point() +
         geom_linerange(aes(ymin = lci, ymax = uci)) +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    })
+    
+    output$rolling_period_plot <- renderPlot({
+      result[[2]]
     })
     
     output$summary <- renderPrint({
