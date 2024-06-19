@@ -399,7 +399,7 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
         senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))
       } else {
         senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))
-        
+      } 
         
         # Create a data frame with the results
         slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
@@ -411,7 +411,7 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
         senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- slope_df  
         
         
-      }
+
     } else if (is.numeric(period) && length(period) == 2) {
       # Filter the data for the specified period
       comp_df_filt <- filter_custom_period(comp_df, period)
@@ -457,6 +457,9 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
 #undebug(rolling_trend)
 #test_rolling <- rolling_trend(test_stl, periods = list("full_length", c(15,0), c(15,10), c(10,5), c(5,0)))
 
+testdf <- rolling_trend(test_stl, periods = list("full_length"))
+
+testdf[[1]]$data
 
 #plot_period_comparison(full_data = test_stl$orig_data[[1]],period_df = test_rolling[[1]])
 

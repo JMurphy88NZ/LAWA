@@ -208,13 +208,15 @@ server <- function(input, output, session) {
     result <- rolling_trend(stl_data, periods = periods, is_seasonal = TRUE)
     
     output$timeSeriesPlot <- renderPlot({
-      plot_data <- result[[1]]$data[[1]]
       
-      ggplot(plot_data, aes(x = yearmon, y = final_series)) +
-        geom_line() +
-        labs(title = "Time Series with Rolling Trend Analysis",
-             x = "Time",
-             y = "Value")
+       result[[2]]
+      
+      # plot_data <- result[[1]]$data[[1]]
+      # ggplot(plot_data, aes(x = yearmon, y = final_series)) +
+      #   geom_line() +
+      #   labs(title = "Time Series with Rolling Trend Analysis",
+      #        x = "Time",
+      #        y = "Value")
     })
     
     output$simcomponentsPlot <- renderPlot({
