@@ -256,7 +256,7 @@ server <- function(input, output, session) {
    })
 
    output$simcomponentsPlot <- renderPlot({
-     autoplot(components(stl_data$stl[[1]]$fit))
+     autoplot(components(result$stl_data$stl[[1]]$fit))
    })
   
    output$slope_est_Plot <- renderPlot({
