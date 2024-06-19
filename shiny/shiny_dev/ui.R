@@ -11,7 +11,7 @@ ui <- fluidPage(
                   choices = c("NULL", "Cosine", "Linear Trend", "Level Shift With Ramp", "Linex")),
       
       wellPanel(
-        titlePanel("Lambda Parameters"),
+        titlePanel("Noise Scaling Parameters"),
         sliderInput("lambda_min", "Lambda Min:", min = -5, max = 5, value = -1, step = 0.1),
         sliderInput("lambda_max", "Lambda Max:", min = -5, max = 5, value = 3, step = 0.1),
         sliderInput("lambda_step", "Lambda Step:", min = 0.01, max = 1, value = 0.5, step = 0.01)
@@ -19,8 +19,8 @@ ui <- fluidPage(
       
       conditionalPanel(
         condition = "input.series_type == 'Cosine'",
-        sliderInput("initial_amplitude", "Initial Amplitude:", min = 0, max = 10, value = 5),
-        sliderInput("decay_rate", "Decay Rate:", min = -1, max = 1, value = 0.01, step = 0.005),
+        sliderInput("initial_amplitude", "Initial Amplitude:", min = -5, max = 5, value = .5, step = .005),
+        sliderInput("decay_rate", "Decay Rate:", min = -.1, max = .1, value = 0.01, step = 0.005),
         sliderInput("num_peaks", "Number of Peaks:", min = -5, max = 10, value = 3, step = 0.25),
         sliderInput("phase_shift", "Phase Shift (radians):", min = 0, max = 2 * pi, value = pi / 4)
       ),
@@ -28,7 +28,7 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.series_type == 'Linear Trend'",
         sliderInput("slope", "Slope:", min = -1, max = 1, value = 0.1, step = 0.01),
-        sliderInput("intercept", "Intercept:", min = -10, max = 10, value = 0)
+        sliderInput("intercept", "Intercept:", min = -10, max = 10, value = 0, step = .01)
       ),
       
       conditionalPanel(
@@ -37,7 +37,7 @@ ui <- fluidPage(
         sliderInput("amp_change", "Amplitude Change:", min = -5, max = 5, value = 0.6, step = 0.05),
         sliderInput("ramp_start", "Ramp Start:", min = 0, max = 1, value = 0.3, step = 0.05),
         sliderInput("ramp_length", "Ramp Length:", min = 0, max = 1, value = 0.1),
-        sliderInput("steepness", "Steepness:", min = -2, max = 2, value = 0.8, step = 0.1)
+        sliderInput("steepness", "Steepness:", min = 0.05, max = 2, value = 0.7, step = 0.05)
       ),
       
       conditionalPanel(
@@ -49,7 +49,7 @@ ui <- fluidPage(
       
       wellPanel(
         titlePanel("Rolling Period Parameters"),
-        textInput("rolling_periods", "Enter Rolling Periods (e.g., full_length, 5,0; 12,1):", value = "full_length")
+        textInput("rolling_periods", "Enter Rolling Periods (e.g., full_length; 10,2; 5,0):", value = "full_length")
       ),
       
       actionButton("estimate_noise_btn", "Estimate with Noise Scaling"),

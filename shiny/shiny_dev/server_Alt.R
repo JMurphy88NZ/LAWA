@@ -49,6 +49,7 @@ server <- function(input, output, session) {
     req(input$series_type)
     
     if (input$series_type == "NULL") {
+      #mod_fun <- as.null
       return(NULL)
     }
     
@@ -119,27 +120,31 @@ server <- function(input, output, session) {
     
     if (is.null(trend_data)) {
       input_data <- data()
-      trend_params <- list(modify_trend = NULL)
+      mod_fun <- as.null()
     } else {
       input_data <- trend_data$input_data
       
-      trend_params <- list(modify_trend = input$series_type)
+      #trend_params <- list(modify_trend = input$series_type)
       
       if (input$series_type == "Cosine") {
+        trend_params <- list()
         trend_params$initial_amplitude <- input$initial_amplitude
         trend_params$decay_rate <- input$decay_rate
         trend_params$num_peaks <- input$num_peaks
         trend_params$phase_shift <- input$phase_shift
       } else if (input$series_type == "Linear Trend") {
+        trend_params <- list()
         trend_params$slope <- input$slope
         trend_params$intercept <- input$intercept
       } else if (input$series_type == "Level Shift With Ramp") {
+        trend_params <- list()
         trend_params$baseline_amp <- input$baseline_amp
         trend_params$amp_change <- input$amp_change
         trend_params$ramp_start <- input$ramp_start
         trend_params$ramp_length <- input$ramp_length
         trend_params$steepness <- input$steepness
       } else if (input$series_type == "Linex") {
+        trend_params <- list()
         trend_params$amplitude <- input$amplitude
         trend_params$x_min <- input$x_min
         trend_params$scale <- input$scale
@@ -195,7 +200,7 @@ server <- function(input, output, session) {
     
     stl_data <- Get_STL(input_data)
     
-    # Parse the periods input
+    # Parse the periods input by ";", e.g, 'full_length; 10,2; 5,0'
     periods_input <- strsplit(input$rolling_periods, ";")[[1]]
     periods <- lapply(periods_input, function(period) {
       if (period == "full_length") {
@@ -205,30 +210,33 @@ server <- function(input, output, session) {
       }
     })
     
-    result <- rolling_trend(stl_data, periods = periods, is_seasonal = TRUE)
+    result <- analyze_trend_rolling(stl_data, periods = periods, 
+                                    is_seasonal = TRUE,
+                                    trend_params = trend_params,
+                                    mod_fun = mod_fun)
     
     output$timeSeriesPlot <- renderPlot({
-      result[[2]]
+      result$estimate_results[[2]]
     })
     
-    output$simcomponentsPlot <- renderPlot({
-      autoplot(components(stl_data$stl[[1]]$fit))
-    })
-    
-    output$slope_est_Plot <- renderPlot({
-      result[[1]] %>% 
-        ggplot(aes(x = period, y = est_slope)) +
-        geom_point() +
-        geom_linerange(aes(ymin = lci, ymax = uci)) +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
-    })
-    
-    output$rolling_period_plot <- renderPlot({
-      result[[2]]
-    })
-    
-    output$summary <- renderPrint({
-      result[[1]]
-    })
+    # output$simcomponentsPlot <- renderPlot({
+    #   autoplot(components(stl_data$stl[[1]]$fit))
+    # })
+    # 
+    # output$slope_est_Plot <- renderPlot({
+    #   result$estimate_results[[1]] %>% 
+    #     ggplot(aes(x = period, y = est_slope)) +
+    #     geom_point() +
+    #     geom_linerange(aes(ymin = lci, ymax = uci)) +
+    #     theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    # })
+    # 
+    # output$rolling_period_plot <- renderPlot({
+    #   result$estimate_results[[2]]
+    # })
+    # 
+    # output$summary <- renderPrint({
+    #   result$estimate_results[[1]]
+    # })
   })
 }

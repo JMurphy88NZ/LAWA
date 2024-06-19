@@ -1,6 +1,6 @@
 
 #load LandwaterPeople (LWP) functions for trend estimation 
-#source("For_Andrew/LWPTrends_v2102.R")
+
 source(here::here("LWPTrends_v2102.R"))
 
 #library(tidyverse)
@@ -145,7 +145,7 @@ scale_stl_noise <- function(stl_data, lambda = seq(from = -1, to = 3, by = 0.5),
 #' @param data A data frame containing the time series data.
 #' @param lambda A numeric vector of lambda values to scale the noise.
 #' @param is_seasonal A logical indicating whether to perform seasonal or nonseasonal trend analysis.
-#' @param trend_params A list of parameters for modifying the trend component, including `modify_trend` and `initial_amplitude` (see simulate_trends_functions.R) .
+#' @param trend_params A list of parameters for modifying the trend component, including `initial_amplitude` (see simulate_trends_functions.R) .
 #' @param analysis_params A list of additional parameters for trend analysis functions.
 #' @param ... Additional arguments passed to the trend modification function.
 #' @return A list containing the STL decomposition data and the estimated results.
@@ -161,16 +161,7 @@ analyze_trend_with_noise <- function(data, lambda = seq(from = -1, to  = 3, by =
   comp_df <- stl_data$stl[[1]]$fit$decomposition
   
   # Step 2: Optionally modify the trend component
-  # if (is.null(trend_params$modify_trend)) {
-  #   message("Keeping original trend component")
-  #   estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
-  # } else {
-  #   trend_params$total_length <- nrow(comp_df)  
-  #   message(paste("modify_trend option:", trend_params$modify_trend))
-    
-    # Remove the modify_trend element from trend_params
-    #trend_params <- trend_params[setdiff(names(trend_params), "modify_trend")]
-  
+
   if (is.null(mod_fun)) {
     message("Keeping original trend component")
     estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
@@ -178,7 +169,6 @@ analyze_trend_with_noise <- function(data, lambda = seq(from = -1, to  = 3, by =
   } else {
     trend_params$total_length <- nrow(comp_df)  
     message("simulating trend using  function provided from 'mod_fun' parameter")
-  
   
     
     # Modify trend component
@@ -199,103 +189,35 @@ analyze_trend_with_noise <- function(data, lambda = seq(from = -1, to  = 3, by =
 
 
 
+# Set cosine_params to match  generate_cosine_series (total_length, initial_amplitude, decay_rate, num_peaks, phase_shift)
 
-analyze_trend_rolling <- function(data, lambda = seq(from = -1, to  = 3, by =  0.5), 
-                                     is_seasonal = TRUE, 
-                                     trend_params = list(initial_amplitude = NULL), 
-                                     analysis_params = list(), mod_fun = NULL, years = 5, ...){
-  # Step 1: Get STL decomposition
-  stl_data <- Get_STL(data)
-  
-  # Join with metadata
-  comp_df <- stl_data$stl[[1]]$fit$decomposition
-  
-  # Step 2: Optionally modify the trend component
-  if (is.null(mod_fun)) {
-    message("Keeping original trend component")
-    estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
-  
-  
-  # if (is.null(trend_params$modify_trend)) {
-  #   message("Keeping original trend component")
-  #   estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
-  } else {
-    trend_params$total_length <- nrow(comp_df)  
-    message("simulating trend using  function provided from 'mod_fun' parameter")
-    
-    # Remove the modify_trend element from trend_params
-    #trend_params <- trend_params[setdiff(names(trend_params), "modify_trend")]
-    
-    # Modify trend component
-    comp_df$trend <- do.call(mod_fun, trend_params)
-    
-    # Update STL data
-    comp_df$final_series <- comp_df$trend + comp_df$remainder
-    comp_df$season_adjust <- comp_df$final_series - comp_df$season_year
-    
-    ###rolling window for   analysis
-    
-    #add param for full length
-    full_length <- nrow(comp_df)/12  
-    
-    comp_df <- filter_time_series <- function(comp_df, years = full_length)
-    
+# cosine_params <-  list(
+#                        decay_rate = 0.01,
+#                        initial_amplitude = 5,
+#                        num_peaks = 5,
+#                        phase_shift = 0
+# )
+# # 
+# # 
+# test_output_lamba <- analyze_trend_with_noise(N03N_filtered$`GW-00002`,
+#                                               lambda = seq(-1, 3, 0.5),
+#                                               is_seasonal = TRUE,
+#                                               trend_params = cosine_params,
+#                                               mod_fun = generate_cosine_series)
 
-    stl_data$stl[[1]]$fit$decomposition <- comp_df
-    
-  
-    
-    estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
-  }
-  
-  # Step 4: Return the results
-  return(list(stl_data = stl_data, estimate_results = estimate_results))
-}
+# analyze_trend_with_noise(N03N_filtered$`GW-00002`,
+#                                               lambda = seq(-1, 3, 0.5),
+#                                               is_seasonal = TRUE,
+#                                               trend_params = cosine_params,
+#                                               mod_fun = testNULL)
+# 
+# testNULL <- as.null()
 
+#
+# # 
+#  autoplot(components(test_output_lamba$stl_data)) 
+# 
 
-
-# Cosine Example from analyze_trend_rolling
-#generate_cosine_series <- function(total_length, initial_amplitude, decay_rate, num_peaks, phase_shift)
-
-
-cosine_params <-  list(
-                       decay_rate = 0.01, 
-                       initial_amplitude = 5,
-                       num_peaks = 5,           
-                       phase_shift = 0          
-)
-
-
-test_output_lamba <- analyze_trend_with_noise(N03N_filtered$`GW-00002`, 
-                                              lambda = seq(-1, 3, 0.5), 
-                                              is_seasonal = TRUE, 
-                                              trend_params = cosine_params,
-                                              mod_fun = NULL)
-
-
-autoplot(components(test_output_lamba$stl_data)) 
-
-
-
-undebug(analyze_trend_with_noise)
-
-test_output_lamba <- analyze_trend_with_noise(N03N_filtered$`GW-00002`, 
-                                       lambda = seq(-1, 3, 0.5), 
-                                       is_seasonal = TRUE, 
-                                       trend_params = cosine_params,
-                                       mod_fun = generate_cosine_series)
-
-
-analyze_trend_rolling <- analyze_trend_rolling(N03N_filtered$`GW-00002`, 
-                                        lambda = seq(-1, 3, 0.5), 
-                                        is_seasonal = TRUE, 
-                                        trend_params = cosine_params,
-                                        mod_fun = generate_cosine_series)
-
-
-
-autoplot(components(test_output_lamba$stl_data)) 
-autoplot(components(analyze_trend_rolling$stl_data)) 
 #' Filter Time Series Data for Custom Periods
 #'
 #' This function filters a time series data frame for custom periods.
@@ -386,8 +308,8 @@ filter_custom_period <- function(ts_data, period = c(5, 0)) {
 plot_period_comparison <- function(full_data, period_df){
   
   orig_plot <- full_data %>% 
-    ggplot(aes(x = yearmon, y = final_series))+
-    geom_line()
+    ggplot(aes(x = yearmon)) +
+    geom_line(aes(y = final_series))
   
   
   slope_df <- period_df %>% 
@@ -399,15 +321,27 @@ plot_period_comparison <- function(full_data, period_df){
     mutate(period = as.factor(period)) %>% 
     group_by(period ) %>% 
     mutate(rowid = dplyr::row_number(),
-           slope_line = est_slope*rowid)
+           slope_line = est_slope*rowid,
+           slope_line_uci = uci*rowid,
+           slope_line_lci = lci*rowid,
+    )
   
-  orig_plot <- orig_plot+
-    geom_line(data = slope_df,
-              aes(x = yearmon, y = slope_line, colour = period, ),show.legend = FALSE)
+  # Adding the slope line
+  orig_plot <- orig_plot +
+    geom_line(data = slope_df, aes(x = yearmon, y = slope_line, colour = period), 
+              show.legend = FALSE,
+              size = 1.5)
+  
+  # Adding the slope CI 
+  orig_plot <- orig_plot +
+    geom_ribbon(data = slope_df, 
+                aes(x = yearmon, ymin = slope_line_lci, ymax = slope_line_uci, fill = period), 
+                alpha = 0.1, color = NA, show.legend = FALSE)
   
   return(orig_plot)
   
 }
+
 
 
 
@@ -509,13 +443,65 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
 }
 
 
-#undebug(rolling_trend)
+
 #test_rolling <- rolling_trend(test_stl, periods = list("full_length", c(15,0), c(15,10), c(10,5), c(5,0)))
 
-testdf <- rolling_trend(test_stl, periods = list("full_length"))
 
-testdf[[1]]$data
+############     
 
-#plot_period_comparison(full_data = test_stl$orig_data[[1]],period_df = test_rolling[[1]])
 
-############                     
+analyze_trend_rolling <- function(data, lambda = seq(from = -1, to  = 3, by =  0.5), 
+                                  is_seasonal = TRUE, 
+                                  trend_params = list(initial_amplitude = NULL), 
+                                  analysis_params = list(), mod_fun = NULL, periods = list("full_length"), ...){
+  # Step 1: Get STL decomposition
+  stl_data <- Get_STL(data)
+  
+  # Join with metadata
+  comp_df <- stl_data$stl[[1]]$fit$decomposition
+  
+  # Step 2: Optionally modify the trend component
+  if (is.null(mod_fun)) {
+    message("Keeping original trend component")
+    estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
+    
+  } else {
+    trend_params$total_length <- nrow(comp_df)  
+    message("simulating trend using  function provided from 'mod_fun' parameter")
+    
+    
+    # Modify trend component
+    comp_df$trend <- do.call(mod_fun, trend_params)
+    
+    # Update STL data
+    comp_df$final_series <- comp_df$trend + comp_df$remainder
+    comp_df$season_adjust <- comp_df$final_series - comp_df$season_year
+    
+    ###rolling window for   analysis
+    
+
+    stl_data$stl[[1]]$fit$decomposition <- comp_df
+    
+    #estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
+     estimate_results <- rolling_trend(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
+    
+    
+  }
+  
+  # Step 4: Return the results
+  return(list(stl_data = stl_data, estimate_results = estimate_results))
+}
+
+
+
+# test_rol_td <- analyze_trend_rolling(N03N_filtered$`GW-00002`,
+#                                #periods = list("full_length", c(10,0), c(8,3), c(6,1), c(5,0)),
+#                                is_seasonal = TRUE,
+#                                trend_params = cosine_params,
+#                                mod_fun = generate_cosine_series)
+
+# test_rol_td <- analyze_trend_rolling(N03N_filtered$`GW-00002`,
+#                                      #periods = list("full_length", c(10,0), c(8,3), c(6,1), c(5,0)),
+#                                      is_seasonal = TRUE,
+#                                      trend_params = cosine_params,
+#                                      mod_fun = NULL)
