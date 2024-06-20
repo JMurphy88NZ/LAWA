@@ -9,7 +9,7 @@ ui <- fluidPage(
       selectInput("site", "Select Site Data:", choices = NULL),
       selectInput("series_type", "Select Trend Type:",
                   choices = c("NULL", "Cosine", "Linear Trend", "Level Shift With Ramp", "Linex")),
-      
+      checkboxInput("is_seasonal", "Is Seasonal", TRUE),
       wellPanel(
         titlePanel("Noise Scaling Parameters"),
         sliderInput("lambda_min", "Lambda Min:", min = -5, max = 5, value = -1, step = 0.1),
@@ -54,8 +54,9 @@ ui <- fluidPage(
       
       actionButton("estimate_noise_btn", "Estimate with Noise Scaling"),
       actionButton("estimate_rolling_btn", "Estimate with Rolling Trend"),
-      downloadButton("downloadData", "Download Results")
-      
+      #downloadButton("downloadData", "Download Results")
+      downloadButton("downloadRollingData", "Download Rolling Results"),
+      downloadButton("downloadNoiseData", "Download Noise Results")
 
     ),
     

@@ -172,7 +172,7 @@ server <- function(input, output, session) {
     }
     
     
-    browser()
+
     
     result <- analyze_trend_with_noise(input_data, 
                                        lambda = lambda, 
@@ -207,6 +207,10 @@ server <- function(input, output, session) {
       result$estimate_results
     })
   })
+  
+  # Reactive values to store results
+  rolling_results <- reactiveVal(NULL)
+  noise_results <- reactiveVal(NULL)
   
   observeEvent(input$estimate_rolling_btn, {
     

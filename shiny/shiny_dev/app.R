@@ -20,7 +20,7 @@ source(here::here("shiny/shiny_dev/ui.R"))
 #source("For_Andrew/shiny/shiny_dev/server.R")
 
 
-options(shiny.reactlog = FALSE)
+#options(shiny.reactlog = FALSE)
 
 # Run the application
 shinyApp(ui = ui, server = server)
