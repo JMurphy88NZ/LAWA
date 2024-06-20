@@ -325,15 +325,46 @@ server <- function(input, output, session) {
      result$estimate_results[[1]]
    })
    
-   output$downloadData <- downloadHandler(
+   # browser()
+   # Download handlers
+   # output$downloadRollingData <- downloadHandler(
+   #   filename = function() {
+   #     paste("rolling_results-", Sys.Date(), ".csv", sep="")
+   #   },
+   #   content = function(file) {
+   # 
+   #     rolling_results <-  result$estimate_results[[1]] %>% select(-data)
+   # 
+   #     write.csv(rolling_results, file, row.names = FALSE)
+   #   }
+   # )
+  
+   
+   output$downloadRollingData <- downloadHandler(
      filename = function() {
-       paste("results-", Sys.Date(), ".csv", sep="")
+       paste("rolling_results-", Sys.Date(), ".zip", sep="")
      },
      content = function(file) {
-       write.csv(result$estimate_results, file)
+       # Create a temporary directory
+       temp_dir <- tempdir()
+       
+       # File paths for the CSV files
+       rolling_file <- file.path(temp_dir, "rolling_results.csv")
+       input_data_file <- file.path(temp_dir, "input_data.csv")
+       
+       # Generate the rolling results CSV
+       rolling_results <- result$estimate_results[[1]] %>% select(-data)
+       write.csv(rolling_results, rolling_file, row.names = FALSE)
+       
+       # Generate the input data CSV
+       write.csv(input_data, input_data_file, row.names = FALSE)
+       
+       # Create a zip file
+       zip::zip(file, files = c(rolling_file, input_data_file))
      }
    )
-  
+   
+   
   
   })
 }
