@@ -1,5 +1,5 @@
 # ui.R
-library(shiny)
+#library(shiny)
 
 ui <- fluidPage(
   titlePanel("Time Series Simulation and Trend Analysis"),

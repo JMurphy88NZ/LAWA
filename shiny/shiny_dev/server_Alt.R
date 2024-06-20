@@ -1,18 +1,32 @@
 #source("For_Andrew/shiny/shiny_dev/shiny_simulate_trends.R")
 #source("For_Andrew/shiny/shiny_dev/shiny_replace_trends.R")
 
+source(here::here("LWPTrends_v2102.R"))
 
 source(here::here("shiny/shiny_dev/shiny_simulate_trends.R"))
 source(here::here("shiny/shiny_dev/shiny_replace_trends.R"))
 
 
+
+
 library(shiny)
+library(ggplot2)
+library(withr)
 library(tsibble)
+library(withr)
+library(imputeTS)
+library(tibble)
+library(purrr)
 library(dplyr)
 library(fable)
-library(imputeTS)
 library(feasts)
-library(ggplot2)
+#library(shiny)
+#library(tsibble)
+#library(dplyr)
+#library(fable)
+#library(imputeTS)
+#library(feasts)
+#library(ggplot2)
 
 # Load data
 

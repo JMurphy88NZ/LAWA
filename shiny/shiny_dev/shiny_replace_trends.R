@@ -1,13 +1,13 @@
 
 #load LandwaterPeople (LWP) functions for trend estimation 
 
-source(here::here("LWPTrends_v2102.R"))
+#source(here::here("LWPTrends_v2102.R"))
 
 #library(tidyverse)
-library(ggplot2)
-library(withr)
-library(feasts)
-library(tsibble)
+# library(ggplot2)
+# library(withr)
+# library(feasts)
+# library(tsibble)
 
 #' Get STL Decomposition
 #'
@@ -444,9 +444,9 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
 
 
 
-#test_rolling <- rolling_trend(test_stl, periods = list("full_length", c(15,0), c(15,10), c(10,5), c(5,0)))
+#test_rolling <- rolling_trend(test_stl, periods = list("full_length"))
 
-
+#debug(rolling_trend)
 ############     
 
 
@@ -493,12 +493,21 @@ analyze_trend_rolling <- function(data, lambda = seq(from = -1, to  = 3, by =  0
 }
 
 
+cosine_params <-  list(
+                       decay_rate = 0.01,
+                       initial_amplitude = 5,
+                       num_peaks = 5,
+                       phase_shift = 0
+)
 
 # test_rol_td <- analyze_trend_rolling(N03N_filtered$`GW-00002`,
-#                                #periods = list("full_length", c(10,0), c(8,3), c(6,1), c(5,0)),
+#                                periods = list("full_length", c(10,0), c(8,3), c(6,1), c(5,0)),
 #                                is_seasonal = TRUE,
 #                                trend_params = cosine_params,
 #                                mod_fun = generate_cosine_series)
+# 
+# 
+# debug(analyze_trend_rolling)
 
 # test_rol_td <- analyze_trend_rolling(N03N_filtered$`GW-00002`,
 #                                      #periods = list("full_length", c(10,0), c(8,3), c(6,1), c(5,0)),
