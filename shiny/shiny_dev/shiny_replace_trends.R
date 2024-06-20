@@ -450,7 +450,7 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
 ############     
 
 
-analyze_trend_rolling <- function(data, lambda = seq(from = -1, to  = 3, by =  0.5), 
+analyze_trend_rolling <- function(data, 
                                   is_seasonal = TRUE, 
                                   trend_params = list(initial_amplitude = NULL), 
                                   analysis_params = list(), mod_fun = NULL, periods = list("full_length"), ...){
@@ -463,7 +463,7 @@ analyze_trend_rolling <- function(data, lambda = seq(from = -1, to  = 3, by =  0
   # Step 2: Optionally modify the trend component
   if (is.null(mod_fun)) {
     message("Keeping original trend component")
-    estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
+    estimate_results <- rolling_trend(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
     
   } else {
     trend_params$total_length <- nrow(comp_df)  
@@ -493,12 +493,12 @@ analyze_trend_rolling <- function(data, lambda = seq(from = -1, to  = 3, by =  0
 }
 
 
-cosine_params <-  list(
-                       decay_rate = 0.01,
-                       initial_amplitude = 5,
-                       num_peaks = 5,
-                       phase_shift = 0
-)
+# cosine_params <-  list(
+#                        decay_rate = 0.01,
+#                        initial_amplitude = 5,
+#                        num_peaks = 5,
+#                        phase_shift = 0
+# )
 
 # test_rol_td <- analyze_trend_rolling(N03N_filtered$`GW-00002`,
 #                                periods = list("full_length", c(10,0), c(8,3), c(6,1), c(5,0)),
@@ -508,6 +508,13 @@ cosine_params <-  list(
 # 
 # 
 # debug(analyze_trend_rolling)
+
+
+# test_rol_td <- analyze_trend_rolling(N03N_filtered$`GW-00002`,
+#                                periods = list("full_length", c(10,0), c(8,3), c(6,1), c(5,0)),
+#                                is_seasonal = TRUE,
+#                                trend_params = cosine_params,
+#                                mod_fun = NULL)
 
 # test_rol_td <- analyze_trend_rolling(N03N_filtered$`GW-00002`,
 #                                      #periods = list("full_length", c(10,0), c(8,3), c(6,1), c(5,0)),

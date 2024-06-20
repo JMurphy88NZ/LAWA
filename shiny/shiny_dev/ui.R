@@ -53,7 +53,10 @@ ui <- fluidPage(
       ),
       
       actionButton("estimate_noise_btn", "Estimate with Noise Scaling"),
-      actionButton("estimate_rolling_btn", "Estimate with Rolling Trend")
+      actionButton("estimate_rolling_btn", "Estimate with Rolling Trend"),
+      downloadButton("downloadData", "Download Results")
+      
+
     ),
     
     mainPanel(

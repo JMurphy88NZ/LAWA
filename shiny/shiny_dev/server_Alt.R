@@ -171,11 +171,16 @@ server <- function(input, output, session) {
                         "Linex" = generate_linex)
     }
     
+    
+    browser()
+    
     result <- analyze_trend_with_noise(input_data, 
                                        lambda = lambda, 
                                        is_seasonal = TRUE, 
                                        trend_params = trend_params,
                                        mod_fun = mod_fun)
+    
+    message("finished analyze_trend_with_noise analysis")
     
     output$timeSeriesPlot <- renderPlot({
       plot_data <- result$stl_data$stl[[1]]$fit$decomposition
@@ -204,6 +209,9 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$estimate_rolling_btn, {
+    
+    shiny::showNotification("Started estimate rolling button event", type = "message")
+    
     trend_data <- simulate_trend()
     
     # Parse the periods input by ";", e.g, 'full_length; 10,2; 5,0'
@@ -217,14 +225,32 @@ server <- function(input, output, session) {
       }
     })
     
-    
-    if (is.null(trend_data)) {
-      input_data <- data()
-      mod_fun <- as.null()
-    } else {
-      input_data <- trend_data$input_data
+    # 
+     if (is.null(trend_data)) {
+       input_data <- data()
+       trend_params <- list()
+       mod_fun <- as.null()
+     } else {
+       input_data <- trend_data$input_data
+
+
       
-      #trend_params <- list(modify_trend = input$series_type)
+      
+      # input_data <- if (is.null(trend_data)) {
+      #   as.data.frame(data())
+      # } else {
+      #   trend_data$input_data
+      # }
+      # 
+      # if (!is.data.frame(input_data)) {
+      #   stop("input_data must be a data frame")
+      # }
+      
+      # if (is.null(trend_data)) {
+      #   trend_params <- list()
+      #   mod_fun <- as.null()
+      # } else {
+      
       
       if (input$series_type == "Cosine") {
         trend_params <- list()
@@ -259,12 +285,18 @@ server <- function(input, output, session) {
     
     }
     
+
+
+    
     result <- analyze_trend_rolling(input_data, 
                                     periods = periods, 
                                     is_seasonal = TRUE,
                                     trend_params = trend_params,
                                     mod_fun = mod_fun)
     
+    shiny::showNotification("Finished analyze_trend_rolling", type = "message")
+    
+    #OUTPUT
    output$timeSeriesPlot <- renderPlot({
      result$estimate_results[[2]]
    })
@@ -272,7 +304,7 @@ server <- function(input, output, session) {
    output$simcomponentsPlot <- renderPlot({
      autoplot(components(result$stl_data$stl[[1]]$fit))
    })
-  
+
    output$slope_est_Plot <- renderPlot({
      result$estimate_results[[1]] %>%
        ggplot(aes(x = period, y = est_slope)) +
@@ -280,13 +312,24 @@ server <- function(input, output, session) {
        geom_linerange(aes(ymin = lci, ymax = uci)) +
        theme(axis.text.x = element_text(angle = 45, hjust = 1))
    })
-  
+
    output$rolling_period_plot <- renderPlot({
      result$estimate_results[[2]]
    })
-  
+
    output$summary <- renderPrint({
      result$estimate_results[[1]]
    })
+   
+   output$downloadData <- downloadHandler(
+     filename = function() {
+       paste("results-", Sys.Date(), ".csv", sep="")
+     },
+     content = function(file) {
+       write.csv(result$estimate_results, file)
+     }
+   )
+  
+  
   })
 }
