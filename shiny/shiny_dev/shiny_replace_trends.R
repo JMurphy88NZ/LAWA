@@ -374,10 +374,12 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
   # Needs extra columns for LWP functions to work
   orig_data <- stl_data$orig_data[[1]] %>% 
     select(lawa_site_id, CenType, Censored, 
-           yearmon, Season, Year, myDate, RawValue)
+           yearmon, Season, Year, myDate)
   
   # Add columns so LWP functions work
   comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
+  #needs this name for LWP functions
+  comp_df$RawValue <- comp_df$final_series
   
   # Iterate over each period and perform trend analysis
   for (period in periods) {

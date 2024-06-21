@@ -289,7 +289,7 @@ server <- function(input, output, session) {
     
     }
     
-
+    #browser()
 
     
     result <- analyze_trend_rolling(input_data, 
