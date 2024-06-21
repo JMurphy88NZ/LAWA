@@ -43,7 +43,7 @@ Get_STL <- function(data){
     data_tsibble$final_series <- ts_data
     
     data_stl <- data_tsibble %>% 
-      model(stl = STL(final_series))
+      fabletools::model(stl = STL(final_series))
     
     # Add tag whether imputed values included in series or not
     data_stl$imputed <- "YES"
@@ -319,8 +319,8 @@ plot_period_comparison <- function(full_data, period_df){
   
   slope_df <- slope_df %>% 
     mutate(period = as.factor(period)) %>% 
-    group_by(period ) %>% 
-    mutate(rowid = dplyr::row_number(),
+    dplyr::group_by(period ) %>% 
+    dplyr::mutate(rowid = dplyr::row_number(),
            slope_line = est_slope*rowid,
            slope_line_uci = uci*rowid,
            slope_line_lci = lci*rowid,
