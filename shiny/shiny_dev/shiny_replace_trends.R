@@ -397,7 +397,8 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
                            lci = senslope_res$Sen_Lci / 12,
                            uci = senslope_res$Sen_Uci / 12,
                            CI_width = uci - lci,
-                           data = list(comp_df))
+                           data = list(comp_df),
+                           MK = list(senslope_res))
         
         senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- slope_df  
         
@@ -418,7 +419,8 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
                          lci = senslope_res$Sen_Lci / 12,
                          uci = senslope_res$Sen_Uci / 12,
                          CI_width = uci - lci,
-                         data = list(comp_df_filt))
+                         data = list(comp_df_filt),
+                         MK = list(senslope_res))
       
       senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- slope_df
       
