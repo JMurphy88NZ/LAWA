@@ -1,4 +1,26 @@
 
+
+# Check if pacman is installed; if not, install it
+# if (!requireNamespace("pacman", quietly = TRUE)) {
+#    install.packages("pacman")
+# }
+# 
+# # Load required packages using pacman
+# pacman::p_load(
+#    plyr,
+#    NADA,
+#    shiny,
+#    ggplot2,
+#    withr,
+#    tsibble,
+#    imputeTS,
+#    tibble,
+#    purrr,
+#    dplyr,
+#    fable,
+#    feasts
+# )
+
 #TODO GAM, QR, Exports
 
 
