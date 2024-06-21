@@ -56,7 +56,9 @@ ui <- fluidPage(
       actionButton("estimate_rolling_btn", "Estimate with Rolling Trend"),
       #downloadButton("downloadData", "Download Results")
       downloadButton("downloadRollingData", "Download Rolling Results"),
-      downloadButton("downloadNoiseData", "Download Noise Results")
+      downloadButton("downloadNoiseData", "Download Noise Results"),
+      #downloadButton("downloadPlot", "Download Plot"),
+      downloadButton("downloadAll", "Download All")
 
     ),
     

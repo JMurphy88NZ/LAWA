@@ -353,7 +353,7 @@ server <- function(input, output, session) {
        MK_file <- file.path(temp_dir, "MK_results.csv")
        orig_data_file <- file.path(temp_dir, "orig_data.csv")
        mod_data_file <- file.path(temp_dir, "sim_data.csv")
-       
+       plot_file <- file.path(temp_dir, "slope_plot.png")
        # Generate the rolling results CSV
        rolling_results <- result$estimate_results[[1]] %>% select(-data, -MK)
        write.csv(rolling_results, rolling_file, row.names = FALSE)
@@ -372,8 +372,17 @@ server <- function(input, output, session) {
        mod_data <- components(result$stl_data)
        write.csv( mod_data, mod_data_file, row.names = FALSE)
        
+       
+       # rolling plot
+       #filename = function() {
+        # paste("slope_plot-", Sys.Date(), ".png", sep="")
+       #},
+       #content = function(file) {
+         ggsave(plot_file, plot = result$estimate_results[[2]], device = "png")
+      # }
+       
        # Create a zip file
-       zip::zip(file, files = c(rolling_file, orig_data_file, mod_data_file, MK_file))
+       zip::zip(file, files = c(rolling_file, orig_data_file, mod_data_file, MK_file,plot_file))
      }
    )
    
