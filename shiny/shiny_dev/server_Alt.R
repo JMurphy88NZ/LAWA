@@ -350,12 +350,20 @@ server <- function(input, output, session) {
        
        # File paths for the CSV files
        rolling_file <- file.path(temp_dir, "rolling_results.csv")
+       MK_file <- file.path(temp_dir, "MK_results.csv")
        orig_data_file <- file.path(temp_dir, "orig_data.csv")
        mod_data_file <- file.path(temp_dir, "sim_data.csv")
        
        # Generate the rolling results CSV
-       rolling_results <- result$estimate_results[[1]] %>% select(-data)
+       rolling_results <- result$estimate_results[[1]] %>% select(-data, -MK)
        write.csv(rolling_results, rolling_file, row.names = FALSE)
+       
+       #MK results
+       MK <- result$estimate_results[[1]]$MK
+       names(MK) <- result$estimate_results[[1]]$period
+       MK_df <- imap_dfr(MK, ~tibble(period = .y,.x))
+       write.csv( MK_df, MK_file, row.names = FALSE)
+       
        
        # Generate the  data CSVs
        orig_data <- result$stl_data$orig_data[[1]]
@@ -365,7 +373,7 @@ server <- function(input, output, session) {
        write.csv( mod_data, mod_data_file, row.names = FALSE)
        
        # Create a zip file
-       zip::zip(file, files = c(rolling_file, orig_data_file, mod_data_file))
+       zip::zip(file, files = c(rolling_file, orig_data_file, mod_data_file, MK_file))
      }
    )
    
