@@ -12,15 +12,38 @@ pacman::p_load(pacman,
                RcppRoll,
                scales)
 
+##
 source("Gam_functions.R")
 
 N03N_filtered <- readRDS("~/LAWA/LAWAgit/N03N_filtered.rds")
+
+
+test_df <- N03N_filtered$`GW-00002`
+
+#test_df$yearmon <- tsibble::yearmonth(test_df$yearmon)
+
+tscm <- screeningmodeling(.data = N03N_filtered$`GW-00002` , datevar = myDate,values = RawValue )
+#tscm2 <- screeningmodeling(.data = N03N_filtered$`GW-00002` , datevar = yearmon,values = RawValue )
+
+plot_individual_trend(tscm)
+
+dplyr::between()
+plot_individual_trend(tscm2)
+
+undebug(plot_individual_trend)
+##
+
+
+
 
 testdf <- N03N_filtered[[62]]
 
 #testdf$yearmon
 
-#testdf$ymon <-  tsibble::yearmonth(testdf$myDate)
+testdf$ymon <-  tsibble::yearmonth(testdf$myDate)
+test_gam <- screeningmodeling(.data = testdf , datevar = ymon,values = RawValue )
+
+debug(screeningmodeling)
 
 test_gam <- screeningmodeling(.data = testdf , datevar = myDate,values = RawValue )
 
@@ -51,14 +74,18 @@ N03N_filtered_df %>%
 
 
 
-LAWA_screenmodel_out %>%
+screen_plot <- LAWA_screenmodel_out %>%
   #arrange(desc(SWEREFID))%>%
   plot_screeningtrends(sorting =lawa_site_id,
                        y_id = lawa_site_id,
                        wrappingvar = measurement)
 
+screen_plot$data
+#plotly::ggplotly(screen_plot)
 
 LAWA_screenmodel_out$fderiv[[1]] %>% tail()
+
+
 
 LAWA_screenmodel_out$fderiv[[1]] %>%
   mutate(deriv = .derivative, 
@@ -69,5 +96,34 @@ LAWA_screenmodel_out$fderiv[[1]] %>%
   rowwise %>%
   mutate(signif = !between(0, lower, upper),
          sign=sign(deriv),
-         signif_sign = signif*sign) %>% 
-  view()
+         signif_sign = signif*sign) 
+
+
+#get info on significance across series
+
+get_signif <- function(mod){
+  
+  signif_ts <- mod$fderiv[[1]] %>%
+    mutate(deriv = .derivative, 
+           deriv_se = .se, 
+           lower=.lower_ci, 
+           upper=.upper_ci) %>%
+    as_tibble %>%
+    rowwise %>%
+    mutate(signif = !between(0, lower, upper),
+           sign=sign(deriv),
+           signif_sign = signif*sign) 
+  return(signif_ts)
+}
+
+
+sig_ts <- get_signif(LAWA_screenmodel_out[1,])
+
+ 
+sig_ts %>% 
+  group_by(signif,sign) %>% 
+  
+##
+  
+
+

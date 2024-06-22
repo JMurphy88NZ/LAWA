@@ -150,7 +150,7 @@ screeningmodeling <- function(.data,
   
   tictoc::tic()
   .data %>%
-    mutate(variable = !!variable,
+    dplyr::mutate(variable = !!variable,
            date = !!datevar) %>%
     select(date, variable, !!!nestvars) %>%
     group_by(!!!nestvars, date) %>%
@@ -159,12 +159,12 @@ screeningmodeling <- function(.data,
     drop_na(variable) %>%
     group_by(!!!nestvars) %>%
     #  complete(date = full_seq(date, 1)) %>%
-    mutate(decimaldate = decimal_date(date),
+    dplyr::mutate(decimaldate = decimal_date(date),
            month = month(date),
            decimal_during = decimaldate - year(date)) %>%
     nest() %>%
     ungroup() %>%
-    mutate(
+    dplyr::mutate(
       fit = future_map(data, possibly(~ modeling(.x,
                                                  link = link,
                                                  autocor = autocor, tdist = tdist),
@@ -210,7 +210,7 @@ plot_screeningtrends <- function(.output, y_id = NULL, sorting = NULL, wrappingv
     unnest(cols = c(fderiv, data)) %>%
     select(!!!syms(grouping), date, deriv, lower, upper) %>%
     # mutate(variable_adjusted = inverse.link(link.func(variable, link = link) - `s(month)`, link = link)) %>%
-    mutate(signif = !Vectorize(between)(0, lower, upper), # make a logical for significant change
+    mutate(signif = !Vectorize(dplyr::between)(0, lower, upper), # make a logical for significant change
            sign = sign(deriv)*signif) %>% # calculate sign and replace insignificant signs of derivatives with 0
     select(-lower, -upper, -deriv) %>%
     arrange(!!!syms(grouping), date) %>%
@@ -510,7 +510,7 @@ plot_proportions <- function(.output, adjust = FALSE, #station_id = NULL,
     unnest(cols = c(fderiv, data)) %>%
     select(!!!syms(grouping), date, deriv, lower, upper) %>%
     # mutate(variable_adjusted = inverse.link(link.func(variable, link = link) - `s(month)`, link = link)) %>%
-    mutate(signif = !Vectorize(between)(0, lower, upper), # make a logical for significant change
+    mutate(signif = !Vectorize(dplyr::between)(0, lower, upper), # make a logical for significant change
            sign = sign(deriv)*signif) %>% # calculate sign and replace insignificant signs of derivatives with 0
     select(-lower, -upper, -deriv) %>%
     arrange(!!!syms(grouping), date) %>%
@@ -641,7 +641,7 @@ plot_data <- function(.output){
     unnest(cols = c(fderiv, data)) %>%
     select(!!!syms(grouping), date, est, lower, upper) %>%
     # mutate(variable_adjusted = inverse.link(link.func(variable, link = link) - `s(month)`, link = link)) %>%
-    mutate(signif = !Vectorize(between)(0, lower, upper), # make a logical for significant change
+    mutate(signif = !Vectorize(dplyr::between)(0, lower, upper), # make a logical for significant change
            sign = sign(derivative)*signif) %>% # calculate sign and replace insignificant signs of derivatives with 0
     select(-lower, -upper, -derivative) %>%
     arrange(!!!syms(grouping), date) %>%
@@ -847,17 +847,17 @@ plot_individual_trend <- function(x, y=NULL, title=NULL){
   annualterm <- predict(x$fit[[1]], newdata=x$data[[1]], type="terms")[,1]
   intercept <- x$fit[[1]]$coef["(Intercept)"]
   x$fderiv[[1]] %>%
-    mutate(deriv = .derivative, 
+    dplyr::mutate(deriv = .derivative, 
            deriv_se = .se, 
            lower=.lower_ci, 
            upper=.upper_ci) %>%
     as_tibble %>%
     rowwise %>%
-    mutate(signif = !between(0, lower, upper),
+    dplyr::mutate(signif = !dplyr::between(0, lower, upper),
            sign=sign(deriv),
            signif_sign = signif*sign) %>%
-    ungroup %>% bind_cols(x$data[[1]],.) %>%
-    mutate(trend = annualterm+intercept) %>%
+    ungroup %>% dplyr::bind_cols(x$data[[1]],.) %>%
+    dplyr::mutate(trend = annualterm+intercept) %>%
     drop_na(variable) %>%
     ggplot(aes(x=date))+geom_line(aes(y=variable))+
     geom_line(aes(y=trend, color=as_factor(signif_sign), group=c(0)), lwd=1.5)+
@@ -879,17 +879,17 @@ plot_individual_trend_log <- function(x, y=NULL, title=NULL){
   annualterm <- predict(x$fit[[1]], newdata=x$data[[1]], type="terms")[,1]
   intercept <- x$fit[[1]]$coef["(Intercept)"]
   x$fderiv[[1]] %>%
-    mutate(deriv = .derivative, 
+    dplyr::mutate(deriv = .derivative, 
            deriv_se = .se, 
            lower=.lower_ci, 
            upper=.upper_ci) %>%
     as_tibble %>%
     rowwise %>%
-    mutate(signif = !between(0, lower, upper),
+    dplyr::mutate(signif = !dplyr::between(0, lower, upper),
            sign=sign(derivative),
            signif_sign = signif*sign) %>%
     ungroup %>% bind_cols(x$data[[1]],.) %>%
-    mutate(trend = annualterm+intercept) %>%
+    dplyr::mutate(trend = annualterm+intercept) %>%
     drop_na(variable) %>%
     ggplot(aes(x=date))+geom_line(aes(y=log(variable)))+
     geom_line(aes(y=trend, color=as_factor(signif_sign), group=c(0)), size=1.5)+
