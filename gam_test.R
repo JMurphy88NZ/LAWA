@@ -184,13 +184,10 @@ get_GAM_trend <- function(stl_data,  GAM_params = list()){
       comp_df$final_series <- comp_df$trend + comp_df$remainder
       comp_df$season_adjust <- comp_df$final_series - comp_df$season_year
       
-      ###rolling window for   analysis
-      
       
       stl_data$stl[[1]]$fit$decomposition <- comp_df
       
-      #estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
-      #estimate_results <- rolling_trend(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
+    
       GAM_results <- get_GAM_trend(stl_data = stl_data, GAM_params= GAM_params )
     }
       

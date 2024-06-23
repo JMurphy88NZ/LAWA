@@ -1,6 +1,7 @@
 if (!("pacman" %in% rownames(installed.packages()))) {install.packages("pacman")}
 pacman::p_load(pacman,
                tidyverse,
+               #tidyr,
                readxl,
                lubridate,
                mgcv,

@@ -495,6 +495,76 @@ analyze_trend_rolling <- function(data,
 }
 
 
+
+##
+get_GAM_trend <- function(stl_data,  GAM_params = list()){
+  
+  
+  comp_df <- components(stl_data) %>% as_tibble()
+  
+  # Needs extra columns for LWP functions to work
+  orig_data <- stl_data$orig_data[[1]] %>% 
+    select(lawa_site_id, CenType, Censored, 
+           yearmon, Season, Year, myDate)
+  
+  # Add columns so LWP functions work
+  comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
+  #needs this name for LWP functions
+  comp_df$RawValue <- comp_df$final_series
+  
+  
+  GAM_results <-  screeningmodeling(.data = comp_df , datevar = myDate,values = RawValue )
+  
+  # Create a data frame with the results
+  GAM_plot <- plot_individual_trend(GAM_results)
+  
+  return(list(GAM_results,GAM_plot) )
+}
+
+
+
+
+analyze_GAM_wrapper <- function(data, 
+                                trend_params = list(initial_amplitude = NULL), 
+                                GAM_params= list(),
+                                mod_fun = NULL, ...) {
+  # Step 1: Get STL decomposition
+  stl_data <- Get_STL(data)
+  
+  # Join with metadata
+  comp_df <- stl_data$stl[[1]]$fit$decomposition
+  
+  # Step 2: Optionally modify the trend component
+  if (is.null(mod_fun)) {
+    message("Keeping original trend component")
+    GAM_results <- get_GAM_trend(stl_data = stl_data, GAM_params = GAM_params)
+    
+  } else {
+    trend_params$total_length <- nrow(comp_df)  
+    message("simulating trend using  function provided from 'mod_fun' parameter")
+    
+    
+    # Modify trend component
+    comp_df$trend <- do.call(mod_fun, trend_params)
+    
+    # Update STL data
+    comp_df$final_series <- comp_df$trend + comp_df$remainder
+    comp_df$season_adjust <- comp_df$final_series - comp_df$season_year
+    
+    
+    stl_data$stl[[1]]$fit$decomposition <- comp_df
+    
+    
+    GAM_results <- get_GAM_trend(stl_data = stl_data, GAM_params= GAM_params )
+  }
+  
+  
+  
+  # Step 4: Return the results
+  return(GAM_results)
+}
+
+
 # cosine_params <-  list(
 #                        decay_rate = 0.01,
 #                        initial_amplitude = 5,
