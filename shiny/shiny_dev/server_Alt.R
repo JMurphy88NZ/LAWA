@@ -255,14 +255,24 @@ server <- function(input, output, session) {
     
     
     
-    GAMresult <- analyze_GAM_wrapper(input_data, 
-                                    trend_params = trend_params,
-                                    mod_fun = mod_fun)
+    # Use tryCatch to handle any errors during the GAM analysis
+    GAMresult <- tryCatch({
+      analyze_GAM_wrapper(input_data, trend_params = trend_params, mod_fun = mod_fun)
+    }, error = function(e) {
+      # Display a user-friendly message
+      showNotification("An error occurred during the GAM analysis.", type = "error")
+      NULL  # Return NULL if an error occurs
+    })
     
 
     
     output$GAMPlot <- renderPlot({
-      GAMresult[[2]]
+      if (!is.null(GAMresult)) {
+        GAMresult[[2]]
+      } else {
+        plot.new()
+        text(0.5, 0.5, "No data to display", cex = 1.5)
+      }
       
     })
     
