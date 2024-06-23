@@ -1,5 +1,8 @@
 
 
+#Build categorisation into it?? old vs new??? based on CI. Add that to interactive...
+#colour based on the categorisation????
+
 # Check if pacman is installed; if not, install it
 # if (!requireNamespace("pacman", quietly = TRUE)) {
 #    install.packages("pacman")
