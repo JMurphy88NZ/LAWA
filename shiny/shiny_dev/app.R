@@ -40,6 +40,9 @@ site_data <- readRDS( here::here( "N03N_filtered.rds"))
 
 source(here::here("shiny/shiny_dev/server_Alt.R"))
 
+
+source(here::here("Gam_functions.R"))
+
 source(here::here("shiny/shiny_dev/ui.R"))
 #source("For_Andrew/shiny/shiny_dev/ui.R")
 #source("For_Andrew/shiny/shiny_dev/server.R")

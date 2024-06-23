@@ -54,6 +54,7 @@ ui <- fluidPage(
       
       actionButton("estimate_noise_btn", "Estimate with Noise Scaling"),
       actionButton("estimate_rolling_btn", "Estimate with Rolling Trend"),
+      actionButton("estimate_GAM_btn", "Estimate with GAM"),
       #downloadButton("downloadData", "Download Results")
       downloadButton("downloadRollingData", "Download Rolling Results"),
       downloadButton("downloadNoiseData", "Download Noise Results"),
@@ -64,6 +65,7 @@ ui <- fluidPage(
     
     mainPanel(
       plotOutput("originalDataPlot"),
+      plotOutput("GAMPlot"),
       plotOutput("simulatedTrendPlot"),
       plotOutput("timeSeriesPlot"),
       plotOutput("simcomponentsPlot"),
