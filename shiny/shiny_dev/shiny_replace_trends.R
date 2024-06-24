@@ -309,7 +309,8 @@ plot_period_comparison <- function(full_data, period_df){
   
   orig_plot <- full_data %>% 
     ggplot(aes(x = yearmon)) +
-    geom_line(aes(y = final_series))
+    geom_line(aes(y = final_series))+
+    theme_bw()
   
   
   slope_df <- period_df %>% 
@@ -642,7 +643,7 @@ get_MK_plot <- function(MKdata, equiv_zone = c(-.015, .015)){
     theme(axis.text.x = element_text(angle = 90, hjust = 1))+
     # Rectangle for the equivalence zone
     geom_rect(aes(ymin = min(equiv_zone), ymax = max(equiv_zone), xmin = -Inf, xmax = Inf),
-              fill = "grey80", alpha = 0.05, colour = NA) +
+              fill = "grey80", alpha = 0.12, colour = NA) +
     scale_color_manual(values = color_mapping, drop = FALSE)
   
   return( MK_plot)   

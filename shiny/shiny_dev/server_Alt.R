@@ -364,39 +364,53 @@ server <- function(input, output, session) {
     #browser()
 
     
-    result <- analyze_trend_rolling(input_data, 
+    result <- tryCatch({analyze_trend_rolling(input_data, 
                                     periods = periods, 
                                     is_seasonal = TRUE,
                                     trend_params = trend_params,
                                     mod_fun = mod_fun)
+    },error = function(e) {
+      # Display a user-friendly message
+      showNotification("An error occurred.Check period input format", type = "error")
+      NULL  # Return NULL if an error occurs
+    })
+    
+    
+
+    # 
+    # output$GAMPlot <- renderPlot({
+    #   if (!is.null(GAMresult)) {
+    #     GAMresult[[2]]
+    #   } else {
+    #     plot.new()
+    #     text(0.5, 0.5, "No data to display", cex = 1.5)
+    #   }
+    #   
+    # })
     
     shiny::showNotification("Finished analyze_trend_rolling", type = "message")
     
     #OUTPUT
-   output$timeSeriesPlot <- renderPlot({
-     result$estimate_results[[2]]
-   })
-
-   output$simcomponentsPlot <- renderPlot({
-     autoplot(components(result$stl_data$stl[[1]]$fit))
-   })
-
-   output$slope_est_Plot <- renderPlot({
-     result$estimate_results[[1]] %>%
-       ggplot(aes(x = period, y = est_slope)) +
-       geom_point() +
-       geom_linerange(aes(ymin = lci, ymax = uci)) +
-       theme(axis.text.x = element_text(angle = 45, hjust = 1))
-   })
+    output$simcomponentsPlot <- renderPlot({
+      autoplot(components(result$stl_data$stl[[1]]$fit))
+    })
+    
+   # output$slope_est_Plot <- renderPlot({
+   #   result$estimate_results[[1]] %>%
+   #     ggplot(aes(x = period, y = est_slope)) +
+   #     geom_point() +
+   #     geom_linerange(aes(ymin = lci, ymax = uci)) +
+   #     theme(axis.text.x = element_text(angle = 45, hjust = 1))
+   # })
 
    output$rolling_period_plot <- renderPlot({
      result$estimate_results[[2]]
    })
 
-   output$summary <- renderPrint({
-     result$estimate_results[[1]]
-   })
-   
+   # output$summary <- renderPrint({
+   #   result$estimate_results[[1]]
+   # })
+   # 
    
    
    
@@ -427,6 +441,7 @@ server <- function(input, output, session) {
      MK_df <-  get_ConfCat(MK_df)
      get_MK_plot(MK_df)
    })
+   
    
    
    output$downloadRollingData <- downloadHandler(

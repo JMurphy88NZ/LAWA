@@ -67,11 +67,11 @@ ui <- fluidPage(
       plotOutput("originalDataPlot"),
       plotOutput("GAMPlot"),
       plotOutput("simulatedTrendPlot"),
-      plotOutput("timeSeriesPlot"),
       plotOutput("simcomponentsPlot"),
-      plotOutput("slope_est_Plot"),
-      plotOutput("MKplot"),
-      verbatimTextOutput("summary")
+      plotOutput("rolling_period_plot"),
+      #plotOutput("slope_est_Plot"),
+      plotOutput("MKplot")
+      #verbatimTextOutput("summary")
     )
   )
 )
