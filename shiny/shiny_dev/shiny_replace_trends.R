@@ -595,3 +595,55 @@ analyze_GAM_wrapper <- function(data,
 #                                      is_seasonal = TRUE,
 #                                      trend_params = cosine_params,
 #                                      mod_fun = NULL)
+
+###
+
+
+
+
+# from cawthron  
+# add confidence classes
+get_ConfCat <-  function(MK_data){
+  
+  conf_cat_df <- MK_data %>%
+    mutate(
+      ConfCat = cut(Cd,
+                  breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
+                  labels = c(
+                    "Very likely improving", "Likely improving", "Indeterminate",
+                    "Likely degrading", "Very likely degrading"
+                  )
+    ),
+    ConfCat = factor(ConfCat,
+                     levels = rev(c(
+                       "Very likely improving",
+                       "Likely improving",
+                       "Indeterminate",
+                       "Likely degrading",
+                       "Very likely degrading"
+                     ))
+    ),
+    TrendScore = as.numeric(ConfCat) - 3,
+    TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
+    
+    return(conf_cat_df )
+  )
+## 
+
+
+get_MK_plot <- function(MKdata, equiv_zone = c(-.015, .015)){
+  
+  MK_plot <- MKdata  %>% 
+    ggplot(aes(colour = ConfCat))+
+    geom_point(aes(y = AnnualSenSlope, x = period,size = 1),show.legend = F)+
+    geom_linerange(aes(ymin = Sen_Lci, ymax = Sen_Uci, x = period), size = 1.5)+
+    geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+    # Rectangle for the equivalence zone
+    geom_rect(aes(ymin = min(equiv_zone), ymax = max(equiv_zone), xmin = -Inf, xmax = Inf),
+              fill = "grey80", alpha = 0.05, colour = NA) +
+    scale_color_manual(values = color_mapping, drop = FALSE)
+  
+  return( MK_plot)   
+}
