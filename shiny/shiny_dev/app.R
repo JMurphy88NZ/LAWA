@@ -26,6 +26,8 @@
 
 #TODO GAM, QR, Exports
 
+# use tryCatch to stop misspecified periods crashing it.
+
 
 
 #site_data <- readRDS("~/My-Local-Workspace/Github_Repos/lawa-trends/For_Andrew/N03N_filtered.rds")

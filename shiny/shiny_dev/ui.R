@@ -70,6 +70,7 @@ ui <- fluidPage(
       plotOutput("timeSeriesPlot"),
       plotOutput("simcomponentsPlot"),
       plotOutput("slope_est_Plot"),
+      plotOutput("MKplot"),
       verbatimTextOutput("summary")
     )
   )

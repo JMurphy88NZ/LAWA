@@ -627,7 +627,7 @@ get_ConfCat <-  function(MK_data){
     TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
     
     return(conf_cat_df )
-  )
+}
 ## 
 
 

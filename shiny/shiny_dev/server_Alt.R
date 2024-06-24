@@ -397,6 +397,12 @@ server <- function(input, output, session) {
      result$estimate_results[[1]]
    })
    
+   
+   
+   
+   
+   
+   
    # browser()
    # Download handlers
    # output$downloadRollingData <- downloadHandler(
@@ -410,7 +416,18 @@ server <- function(input, output, session) {
    #     write.csv(rolling_results, file, row.names = FALSE)
    #   }
    # )
-  
+   
+   output$MKplot<- renderPlot({
+   
+     #MK results
+     MK <- result$estimate_results[[1]]$MK
+     names(MK) <- result$estimate_results[[1]]$period
+     MK_df <- imap_dfr(MK, ~tibble(period = .y,.x))
+     
+     MK_df <-  get_ConfCat(MK_df)
+     get_MK_plot(MK_df)
+   })
+   
    
    output$downloadRollingData <- downloadHandler(
      filename = function() {
