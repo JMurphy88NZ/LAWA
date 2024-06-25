@@ -660,7 +660,13 @@ analyze_GAM_wrapper <- function(data,
 #   return( MK_plot)   
 # }
 
-
+color_mapping <- c(
+  "Very likely improving" = "green4",
+  "Likely improving" = "seagreen2",
+  "Indeterminate" = "blue",
+  "Likely degrading" = "orange",
+  "Very likely degrading" = "red"
+)
 # from cawthron  
 # add confidence classes
 ###modify so take input direct from rolling results
