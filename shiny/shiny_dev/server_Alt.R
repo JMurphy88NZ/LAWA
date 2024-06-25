@@ -432,14 +432,15 @@ server <- function(input, output, session) {
    # )
    
    output$MKplot<- renderPlot({
-   
+     get_ConfCat(result) %>% 
+       get_MK_plot()
      #MK results
-     MK <- result$estimate_results[[1]]$MK
-     names(MK) <- result$estimate_results[[1]]$period
-     MK_df <- imap_dfr(MK, ~tibble(period = .y,.x))
-     
-     MK_df <-  get_ConfCat(MK_df)
-     get_MK_plot(MK_df)
+     # MK <- result$estimate_results[[1]]$MK
+     # names(MK) <- result$estimate_results[[1]]$period
+     # MK_df <- imap_dfr(MK, ~tibble(period = .y,.x))
+     # 
+     # MK_df <-  get_ConfCat(MK_df)
+     # get_MK_plot(MK_df)
    })
    
    

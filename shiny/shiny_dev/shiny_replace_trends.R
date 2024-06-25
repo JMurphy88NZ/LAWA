@@ -386,6 +386,12 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
   for (period in periods) {
     
     if (is.character(period) && period == "full_length") {
+      
+      
+      #get date range in string
+      date_range <- range(comp_df$yearmon)
+      date_range <- paste(date_range[1],   date_range[2], sep = ":")
+      
       # Full length analysis without filtering
       if (is_seasonal) {
         senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))
@@ -394,7 +400,8 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
       } 
         
         # Create a data frame with the results
-        slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
+        slope_df <- tibble(date_range = date_range,
+                           est_slope = senslope_res$AnnualSenSlope / 12,
                            lci = senslope_res$Sen_Lci / 12,
                            uci = senslope_res$Sen_Uci / 12,
                            CI_width = uci - lci,
@@ -408,6 +415,10 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
     } else if (is.numeric(period) && length(period) == 2) {
       # Filter the data for the specified period
       comp_df_filt <- filter_custom_period(comp_df, period)
+      #get date range in string
+     date_range <- range(comp_df_filt$yearmon)
+      date_range <- paste(date_range[1],   date_range[2], sep = ":")
+      
       
       if (is_seasonal) {
         senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df_filt)), analysis_params))
@@ -416,7 +427,8 @@ rolling_trend <- function(stl_data, periods = list("full_length", c(5, 0)),
       }
       
       # Create a data frame with the results
-      slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
+      slope_df <- tibble(date_range = date_range,
+                         est_slope = senslope_res$AnnualSenSlope / 12,
                          lci = senslope_res$Sen_Lci / 12,
                          uci = senslope_res$Sen_Uci / 12,
                          CI_width = uci - lci,
@@ -602,36 +614,89 @@ analyze_GAM_wrapper <- function(data,
 
 
 
+
+# get_ConfCat <-  function(MK_data){
+#   
+#   conf_cat_df <- MK_data %>%
+#     mutate(
+#       ConfCat = cut(Cd,
+#                   breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
+#                   labels = c(
+#                     "Very likely improving", "Likely improving", "Indeterminate",
+#                     "Likely degrading", "Very likely degrading"
+#                   )
+#     ),
+#     ConfCat = factor(ConfCat,
+#                      levels = rev(c(
+#                        "Very likely improving",
+#                        "Likely improving",
+#                        "Indeterminate",
+#                        "Likely degrading",
+#                        "Very likely degrading"
+#                      ))
+#     ),
+#     TrendScore = as.numeric(ConfCat) - 3,
+#     TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
+#     
+#     return(conf_cat_df )
+# }
+# ## 
+# 
+# 
+# get_MK_plot <- function(MKdata, equiv_zone = c(-.015, .015)){
+#   
+#   MK_plot <- MKdata  %>% 
+#     ggplot(aes(colour = ConfCat))+
+#     geom_point(aes(y = AnnualSenSlope, x = period,size = 1),show.legend = F)+
+#     geom_linerange(aes(ymin = Sen_Lci, ymax = Sen_Uci, x = period), size = 1.5)+
+#     geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
+#     theme_bw()+
+#     theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+#     # Rectangle for the equivalence zone
+#     geom_rect(aes(ymin = min(equiv_zone), ymax = max(equiv_zone), xmin = -Inf, xmax = Inf),
+#               fill = "grey80", alpha = 0.12, colour = NA) +
+#     scale_color_manual(values = color_mapping, drop = FALSE)
+#   
+#   return( MK_plot)   
+# }
+
+
 # from cawthron  
 # add confidence classes
-get_ConfCat <-  function(MK_data){
+###modify so take input direct from rolling results
+get_ConfCat <-  function(rolling_results){
+  
+  #get MK data stored in results from 'analyze_trend_rolling'
+  MK_data <- rolling_results$estimate_results[[1]]$MK
+  names( MK_data) <- rolling_results$estimate_results[[1]]$date_range 
+  MK_data <- imap_dfr(MK_data, ~tibble(period = .y,.x))
   
   conf_cat_df <- MK_data %>%
     mutate(
       ConfCat = cut(Cd,
-                  breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
-                  labels = c(
-                    "Very likely improving", "Likely improving", "Indeterminate",
-                    "Likely degrading", "Very likely degrading"
-                  )
-    ),
-    ConfCat = factor(ConfCat,
-                     levels = rev(c(
-                       "Very likely improving",
-                       "Likely improving",
-                       "Indeterminate",
-                       "Likely degrading",
-                       "Very likely degrading"
-                     ))
-    ),
-    TrendScore = as.numeric(ConfCat) - 3,
-    TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
-    
-    return(conf_cat_df )
+                    breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
+                    labels = c(
+                      "Very likely improving", "Likely improving", "Indeterminate",
+                      "Likely degrading", "Very likely degrading"
+                    )
+      ),
+      ConfCat = factor(ConfCat,
+                       levels = rev(c(
+                         "Very likely improving",
+                         "Likely improving",
+                         "Indeterminate",
+                         "Likely degrading",
+                         "Very likely degrading"
+                       ))
+      ),
+      TrendScore = as.numeric(ConfCat) - 3,
+      TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
+  
+  return(conf_cat_df )
 }
 ## 
 
-
+# plot MK estimates
 get_MK_plot <- function(MKdata, equiv_zone = c(-.015, .015)){
   
   MK_plot <- MKdata  %>% 
@@ -640,7 +705,7 @@ get_MK_plot <- function(MKdata, equiv_zone = c(-.015, .015)){
     geom_linerange(aes(ymin = Sen_Lci, ymax = Sen_Uci, x = period), size = 1.5)+
     geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
     theme_bw()+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+    theme(axis.text.x = element_text(angle = -90, hjust = 1))+
     # Rectangle for the equivalence zone
     geom_rect(aes(ymin = min(equiv_zone), ymax = max(equiv_zone), xmin = -Inf, xmax = Inf),
               fill = "grey80", alpha = 0.12, colour = NA) +
