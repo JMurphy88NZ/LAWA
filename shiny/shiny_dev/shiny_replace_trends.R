@@ -792,3 +792,231 @@ scale_components<- function(stl_data, scaling_factor = list(c(1,1)),
   
   return(estimate_results)
 }
+
+
+
+# new wrapper that allows scaling and setting periods ---------------------
+
+
+
+rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)), 
+                              is_seasonal = TRUE, analysis_params = list(),
+                              ...) {
+  
+  # Container lists
+  complist <- list()
+  senslope_res_list <- list()
+  
+  comp_df <- components(stl_data) %>% as_tibble()
+  
+
+  # Iterate over each period and perform trend analysis
+  for (period in periods) {
+    
+    if (is.character(period) && period == "full_length") {
+      
+      
+      #get date range in string
+      date_range <- range(comp_df$yearmon)
+      date_range <- paste(date_range[1],   date_range[2], sep = ":")
+      
+      # Full length analysis without filtering
+      if (is_seasonal) {
+        senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))
+      } else {
+        senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))
+      } 
+      
+      # Create a data frame with the results
+      slope_df <- tibble(date_range = date_range,
+                         est_slope = senslope_res$AnnualSenSlope / 12,
+                         lci = senslope_res$Sen_Lci / 12,
+                         uci = senslope_res$Sen_Uci / 12,
+                         CI_width = uci - lci,
+                         data = list(comp_df),
+                         MK = list(senslope_res))
+      
+      senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- slope_df  
+      
+      
+      
+    } else if (is.numeric(period) && length(period) == 2) {
+      # Filter the data for the specified period
+      comp_df_filt <- filter_custom_period(comp_df, period)
+      #get date range in string
+      date_range <- range(comp_df_filt$yearmon)
+      date_range <- paste(date_range[1],   date_range[2], sep = ":")
+      
+      
+      if (is_seasonal) {
+        senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df_filt)), analysis_params))
+      } else {
+        senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df_filt)), analysis_params))
+      }
+      
+      # Create a data frame with the results
+      slope_df <- tibble(date_range = date_range,
+                         est_slope = senslope_res$AnnualSenSlope / 12,
+                         lci = senslope_res$Sen_Lci / 12,
+                         uci = senslope_res$Sen_Uci / 12,
+                         CI_width = uci - lci,
+                         data = list(comp_df_filt),
+                         MK = list(senslope_res))
+      
+      senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- slope_df
+      
+      
+      
+    } else {
+      stop("Invalid period specified. Period should be 'full_length' or a numeric vector of length 2.")
+    }
+    
+    
+  }
+  
+  # Combine each estimate into the same tidy data frame
+  senslope_res_list <- imap_dfr(senslope_res_list, ~ tibble(period = .y, .x))
+  
+  estimate_results <- senslope_res_list %>% 
+    mutate(CI_width = uci - lci)
+  
+  
+  
+  period_plot <- plot_period_comparison(comp_df, period_df =  estimate_results)
+  
+  return( list(estimate_results,period_plot ))
+}
+
+# scale components
+scale_components<- function(stl_data, 
+                            scaling_factor = list(c(1,1)), 
+                            periods = list("full_length", c(5, 0)), 
+                            is_seasonal = TRUE, 
+                            analysis_params = list(),
+                            ...) {
+  
+  # Container lists
+  complist <- list()
+  senslope_res_list <- list()
+  
+  #comp_df <- components(stl_data) #%>% as_tibble()
+  comp_df <- stl_data$stl[[1]]$fit$decomposition
+  # Needs extra columns for LWP functions to work
+  orig_data <- stl_data$orig_data[[1]] %>% 
+    select(lawa_site_id, CenType, Censored, 
+           yearmon, Season, Year, myDate, RawValue)
+  
+  # Add columns so LWP functions work
+  comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
+  
+  ## Scale noise by lambda here in a for loop (estimating slope each time)
+  for (i in 1:length(scaling_factor)) {
+    
+    # comp_df <- comp_df %>% 
+    #    mutate(final_series = trend +  (season_year * scaling_factor[[i]][1]) + (remainder * scaling_factor[[i]][2]),
+    #           RawValue = final_series)  # Only so named because LWP functions expect that name
+    
+    
+    # Update STL data
+    
+    comp_df$remainder <- comp_df$remainder* scaling_factor[[i]][2]
+    comp_df$season_year <-comp_df$season_year*scaling_factor[[i]][1]
+    
+    comp_df$final_series <- comp_df$trend + comp_df$season_year + comp_df$remainder
+    comp_df$season_adjust <- comp_df$trend - comp_df$season_year
+    
+    #need this value name for LWP function
+    comp_df$RawValue <- comp_df$final_series   
+    
+    #replace STL components
+    stl_data_mod <- stl_data
+    stl_data_mod$stl[[1]]$fit$decomposition <- comp_df
+    
+    rol_est <- rolling_trend_alt(stl_data_mod,
+                                 is_seasonal = is_seasonal, 
+                                 periods = periods,
+                                 analysis_params = analysis_params)
+    
+    rol_est[[1]]$seasonal_sf <- scaling_factor[[i]][1]
+    rol_est[[1]]$noise_sf = scaling_factor[[i]][2]
+    
+    rol_est[[1]] <- rol_est[[1]] %>% relocate(period,seasonal_sf,noise_sf)
+    
+    senslope_res_list[[i]] <- rol_est
+  }
+  return(senslope_res_list)
+}  
+
+
+analyze_trend_wrapper <- function(data, 
+                                      scaling_factor = list(c(1,1)),
+                                      is_seasonal = TRUE, 
+                                      trend_params = list(initial_amplitude = NULL), 
+                                      analysis_params = list(), mod_fun = NULL, 
+                                      periods = list("full_length"), 
+                                      ...){
+  # Step 1: Get STL decomposition
+  stl_data <- Get_STL(data)
+  
+  # Join with metadata
+  comp_df <- stl_data$stl[[1]]$fit$decomposition
+  
+  # Step 2: Optionally modify the trend component
+  if (is.null(mod_fun)) {
+    message("Keeping original trend component")
+    #estimate_results <- rolling_trend_alt(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
+    estimate_results <- scale_components(stl_data,  periods = periods, 
+                                         scaling_factor = scaling_factor,
+                                         is_seasonal = is_seasonal, 
+                                         analysis_params = analysis_params)
+  } else {
+    trend_params$total_length <- nrow(comp_df)  
+    message("simulating trend using  function provided from 'mod_fun' parameter")
+    
+    
+    # Modify trend component
+    comp_df$trend <- do.call(mod_fun, trend_params)
+    
+    # Update STL data
+    comp_df$final_series <- comp_df$trend + comp_df$remainder
+    comp_df$season_adjust <- comp_df$final_series - comp_df$season_year
+    
+    ###rolling window for   analysis
+    
+    
+    stl_data$stl[[1]]$fit$decomposition <- comp_df
+    
+    #estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
+    #estimate_results <- rolling_trend_alt(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
+    estimate_results <- scale_components(stl_data,  
+                                         periods = periods, 
+                                         scaling_factor = scaling_factor,
+                                         is_seasonal = is_seasonal, 
+                                         analysis_params = analysis_params)
+    
+  }
+  
+  # Step 4: Return the results
+  #return(list(stl_data = stl_data, estimate_results = estimate_results))
+  return(estimate_results)
+}
+
+##Example
+# cosine_params <-  list(
+#   decay_rate = 0.01,
+#   initial_amplitude = 2,
+#   num_peaks = 2,
+#   phase_shift = 0
+# )
+# 
+# # first element = seasonal, second element = remainder
+# # e.g.1, c(1,1): original seasonal and remanider component
+# #e.g.,2  c(0,2): remove seasonal, double  remainder component
+# scaling_factor <- list(c(1,1), c(0,1), c(2,1), c(2,2))
+# 
+#                 analyze_trend_wrapper(site_data$`GW-00002`,
+#                                          scaling_factor = scaling_factor,
+#                                          periods = list("full_length", c(10,5)),
+#                                          is_seasonal = TRUE,
+#                                          trend_params = cosine_params,
+#                                          mod_fun = generate_cosine_series)
