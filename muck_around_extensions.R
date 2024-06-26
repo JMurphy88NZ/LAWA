@@ -340,7 +340,9 @@ senslope_res_list[[1]]$data[[1]] %>%
 
 
 ####
-get_QR_est <- function(data, trm = "Month", form = formula(paste0("RawValue~Year+", trm))) {
+get_QR_est <- function(data, trm = "Month", 
+                       form = formula(paste0("RawValue~Year+", trm)),
+                       analysis_params = list()) {
    
    data$RawValue[data$RawValue == 0] <- 0.00001  
    
@@ -605,9 +607,12 @@ test_QR <- scale_components_QR(stl_data,scaling_factor = scaling_factor)
 test_rt <- rolling_trend(stl_data) 
 
 
+test_QR_rolling <- rolling_trend_QR(stl_data)
 
+undebug(rolling_trend_QR)
+undebug(get_QR_est)
 
-rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)), 
+rolling_trend_QR <- function(stl_data, periods = list("full_length", c(5, 0)), 
                           is_seasonal = TRUE, analysis_params = list(),
                           ...) {
    
@@ -620,7 +625,7 @@ rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)),
    #Removed getting of orig data, as already from other function.
    
    #needs this name for LWP functions
-   #comp_df$RawValue <- comp_df$final_series
+   comp_df$RawValue <- comp_df$final_series
    
    
  # Iterate over each period and perform trend analysis
@@ -634,26 +639,15 @@ rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)),
          date_range <- paste(date_range[1],   date_range[2], sep = ":")
          
          # Full length analysis without filtering
-         if (is_seasonal) {
-            senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))
-         } else {
-            senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))
-         } 
+         senslope_res <- do.call(get_QR_est, c(list(as.data.frame(comp_df)), analysis_params))
+
          
-         # Create a data frame with the results
-         slope_df <- tibble(date_range = date_range,
-                            est_slope = senslope_res$AnnualSenSlope / 12,
-                            lci = senslope_res$Sen_Lci / 12,
-                            uci = senslope_res$Sen_Uci / 12,
-                            CI_width = uci - lci,
-                            data = list(comp_df),
-                            MK = list(senslope_res))
-         
-         senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- slope_df  
+         senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- senslope_res 
          
          
          
       } else if (is.numeric(period) && length(period) == 2) {
+         
          # Filter the data for the specified period
          comp_df_filt <- filter_custom_period(comp_df, period)
          #get date range in string
@@ -661,25 +655,12 @@ rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)),
          date_range <- paste(date_range[1],   date_range[2], sep = ":")
          
          
-         if (is_seasonal) {
-            senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df_filt)), analysis_params))
-         } else {
-            senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df_filt)), analysis_params))
-         }
-         
-         # Create a data frame with the results
-         slope_df <- tibble(date_range = date_range,
-                            est_slope = senslope_res$AnnualSenSlope / 12,
-                            lci = senslope_res$Sen_Lci / 12,
-                            uci = senslope_res$Sen_Uci / 12,
-                            CI_width = uci - lci,
-                            data = list(comp_df_filt),
-                            MK = list(senslope_res))
-         
-         senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- slope_df
+         senslope_res <- do.call(get_QR_est, c(list(as.data.frame(comp_df_filt)), analysis_params))
          
          
+         senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- senslope_res 
          
+      
       } else {
          stop("Invalid period specified. Period should be 'full_length' or a numeric vector of length 2.")
       }
@@ -688,16 +669,16 @@ rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)),
    }
    
    # Combine each estimate into the same tidy data frame
-   senslope_res_list <- imap_dfr(senslope_res_list, ~ tibble(period = .y, .x))
+   #senslope_res_list <- imap_dfr(senslope_res_list, ~ tibble(period = .y, .x))
    
-   estimate_results <- senslope_res_list %>% 
-      mutate(CI_width = uci - lci)
+   #estimate_results <- senslope_res_list %>% 
+   #   mutate(CI_width = uci - lci)
    
    
    
-   period_plot <- plot_period_comparison(comp_df, period_df =  estimate_results)
+   #period_plot <- plot_period_comparison(comp_df, period_df =  estimate_results)
    
-   return( list(estimate_results,period_plot ))
+   return( senslope_res_list)
 }
 
 #
