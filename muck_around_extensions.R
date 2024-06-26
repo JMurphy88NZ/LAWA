@@ -1,0 +1,333 @@
+
+
+
+ cosine_params <-  list(
+                        decay_rate = 0.01,
+                        initial_amplitude = 2,
+                        num_peaks = 2,
+                        phase_shift = 0
+ )
+
+ test_rol_td <- analyze_trend_rolling(site_data$`GW-00002`,
+                                periods = list("full_length",c(15,10), c(15,5), c(15,0), c(10,5), c(10,0), c(8,3), c(6,1), c(5,0)),
+                                is_seasonal = TRUE,
+                                trend_params = cosine_params,
+                                mod_fun = generate_cosine_series)
+ 
+ result <-  test_rol_td
+ 
+ 
+ lin_params <- list(slope = 0.0025, intercept = 1)
+ 
+ test_rol_td_lin <- analyze_trend_rolling(site_data$`GW-00002`,
+                                      periods = list("full_length",c(15,10), c(15,5), c(15,0), c(10,5), c(10,0), c(8,3), c(6,1), c(5,0)),
+                                      is_seasonal = TRUE,
+                                      trend_params = lin_params,
+                                      mod_fun = generate_linear_trend)
+ 
+ 
+ test_rol_td_lin <- analyze_trend_rolling(site_data$`GW-00002`,
+                                          periods = list("full_length",c(15,10), c(15,5), c(15,0), c(10,5), c(10,0), c(8,3), c(6,1), c(5,0)),
+                                          is_seasonal = TRUE,
+                                          trend_params = lin_params,
+                                          mod_fun = NULL)
+
+result <-  test_rol_td_lin
+
+#########
+
+ MK <-  result$estimate_results[[1]]$MK
+ names(MK) <- result$estimate_results[[1]]$period
+ MK_df <- imap_dfr(MK, ~tibble(period = .y,.x))
+ 
+ 
+# from cawthron  
+ # add confidence classes
+ trend_tab <-  MK_df %>%
+    mutate(
+       ConfCat = cut(Cd,
+                     breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
+                     labels = c(
+                        "Very likely improving", "Likely improving", "Indeterminate",
+                        "Likely degrading", "Very likely degrading"
+                     )
+       ),
+       ConfCat = factor(ConfCat,
+                        levels = rev(c(
+                           "Very likely improving",
+                           "Likely improving",
+                           "Indeterminate",
+                           "Likely degrading",
+                           "Very likely degrading"
+                        ))
+       ),
+       TrendScore = as.numeric(ConfCat) - 3,
+       TrendScore = ifelse(is.na(TrendScore), NA, TrendScore)
+    )
+## 
+ 
+ # Define the colors for each category
+ color_mapping <- c(
+    "Very likely improving" = "green4",
+    "Likely improving" = "seagreen2",
+    "Indeterminate" = "blue",
+    "Likely degrading" = "orange",
+    "Very likely degrading" = "red"
+ )
+ 
+ 
+ equiv_zone <-  c(-.015, .015)
+ 
+ 
+ get_MK_plot <- function(MKdata, equiv_zone = c(-.015, .015)){
+    
+ MK_plot <- MKdata  %>% 
+   ggplot(aes(colour = ConfCat))+
+ geom_point(aes(y = AnnualSenSlope, x = period,size = 1),show.legend = F)+
+    geom_linerange(aes(ymin = Sen_Lci, ymax = Sen_Uci, x = period), size = 1.5)+
+    geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
+   theme_bw()+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+    # Rectangle for the equivalence zone
+    geom_rect(aes(ymin = min(equiv_zone), ymax = max(equiv_zone), xmin = -Inf, xmax = Inf),
+              fill = "grey80", alpha = 0.05, colour = NA) +
+    scale_color_manual(values = color_mapping, drop = FALSE)
+
+ return( MK_plot)   
+}
+ 
+ #Add site and measurement...
+ get_MK_plot(trend_tab)
+## 
+ 
+ 
+
+#equivalence
+example_data <- site_data$`GW-00002`
+
+example_result <- NonSeasonalTrendAnalysis(as.data.frame(example_data))
+
+slope_df <-  tibble(est_slope = example_result$AnnualSenSlope / 12,
+                    lci = example_result$Sen_Lci/12,
+                    uci =  example_result$Sen_Uci/12)
+
+
+CI_range <- c(slope_df$lci, slope_df$uci)
+equiv_zone <- c(-.01,.01)
+
+
+
+# Function to check the position of the CI relative to the equivalence region
+check_equivalence <- function(CI, equiv) {
+   lower_CI <- CI[1]
+   upper_CI <- CI[2]
+   lower_equiv <- equiv[1]
+   upper_equiv <- equiv[2]
+   
+   if (lower_CI >= lower_equiv && upper_CI <= upper_equiv) {
+      return("Fully within the equivalence region")
+   } else if (upper_CI < lower_equiv || lower_CI > upper_equiv) {
+      return("Fully outside the equivalence region")
+   } else {
+      return("Partly within the equivalence region")
+   }
+}
+
+# Check the CI against the equivalence region
+result <- check_equivalence(CI_range, equiv_zone)
+
+#  PLOT
+slope_df %>% 
+   ggplot() +
+   geom_point(aes(x = est_slope, y =.6))+
+   geom_linerange(aes(xmin = lci, xmax = uci, y = .6))+
+   # Rectangle for the equivalence zone
+   geom_rect(aes(xmin = min(equiv_zone), xmax = max(equiv_zone), ymin = 0, ymax = 1),
+             fill = "grey80", alpha = 0.5) +
+   theme_classic()+
+   coord_cartesian(xlim = c(-.02,.02))
+# Horizontal error bar for the CI
+
+
+#####
+
+trend_tab %>% 
+   ggplot() +
+   geom_point(aes(x = est_slope, y =.6))+
+   geom_linerange(aes(xmin = lci, xmax = uci, y = .6))+
+   # Rectangle for the equivalence zone
+   geom_rect(aes(xmin = min(equiv_zone), xmax = max(equiv_zone), ymin = 0, ymax = 1),
+             fill = "grey80", alpha = 0.5) +
+   theme_classic()+
+   coord_cartesian(xlim = c(-.02,.02))
+
+########
+test_stl <- Get_STL(site_data$`GW-00004`)
+test_rolling <- rolling_trend(test_stl, periods = list("full_length", c(5,0)))
+
+test_rol_wrap <- analyze_trend_rolling(site_data$`GW-00004`,periods = list("full_length", c(5,0))) 
+
+undebug(rolling_trend)
+
+yearrange
+
+# Concatenate the elements
+yearrange_ccat <- paste(yearrange[1], yearrange[2], sep = ":")
+
+
+#########
+
+#MK results
+MK <- result$estimate_results[[1]]$MK
+names(MK) <- result$estimate_results[[1]]$period
+MK_df <- imap_dfr(MK, ~tibble(period = .y,.x))
+
+MK_df <-  get_ConfCat(MK_df)
+get_MK_plot(MK_df)
+
+
+rolling_results <- test_rol_wrap
+
+
+test_cc <-   get_ConfCat(test_rol_wrap) 
+get_MK_plot(test_cc) 
+
+
+###modify so take input direct from rolling results
+get_ConfCat <-  function(rolling_results){
+   
+   #get MK data stored in results from 'analyze_trend_rolling'
+   MK_data <- rolling_results$estimate_results[[1]]$MK
+   names( MK_data) <- rolling_results$estimate_results[[1]]$date_range 
+   MK_data <- imap_dfr(MK_data, ~tibble(period = .y,.x))
+   
+   conf_cat_df <- MK_data %>%
+      mutate(
+         ConfCat = cut(Cd,
+                       breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
+                       labels = c(
+                          "Very likely improving", "Likely improving", "Indeterminate",
+                          "Likely degrading", "Very likely degrading"
+                       )
+         ),
+         ConfCat = factor(ConfCat,
+                          levels = rev(c(
+                             "Very likely improving",
+                             "Likely improving",
+                             "Indeterminate",
+                             "Likely degrading",
+                             "Very likely degrading"
+                          ))
+         ),
+         TrendScore = as.numeric(ConfCat) - 3,
+         TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
+   
+   return(conf_cat_df )
+}
+## 
+
+# plot MK estimates
+get_MK_plot <- function(MKdata, equiv_zone = c(-.015, .015)){
+   
+   MK_plot <- MKdata  %>% 
+      ggplot(aes(colour = ConfCat))+
+      geom_point(aes(y = AnnualSenSlope, x = period,size = 1),show.legend = F)+
+      geom_linerange(aes(ymin = Sen_Lci, ymax = Sen_Uci, x = period), size = 1.5)+
+      geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
+      theme_bw()+
+      theme(axis.text.x = element_text(angle = -90, hjust = 1))+
+      # Rectangle for the equivalence zone
+      geom_rect(aes(ymin = min(equiv_zone), ymax = max(equiv_zone), xmin = -Inf, xmax = Inf),
+                fill = "grey80", alpha = 0.12, colour = NA) +
+      scale_color_manual(values = color_mapping, drop = FALSE)
+   
+   return( MK_plot)   
+}
+
+######
+scaling_factor = list(c(1,1), c(0,2))
+scale_comp_test <- scale_components(stl_data, scaling_factor = scaling_factor )
+
+components(scale_comp_test$data[[1]]) %>% autoplot()
+components(scale_comp_test$data[[2]]) %>% autoplot()
+
+stl_data <- test_stl
+scaling_factor = list(c(3,2), c(4,0))
+lambda_value <-scaling_factor[[1]]
+# scale components
+scale_components<- function(stl_data, scaling_factor = list(c(1,1)), 
+                            is_seasonal = TRUE, analysis_params = list()) {
+   
+   # Container lists
+   complist <- list()
+   senslope_res_list <- list()
+   
+   #comp_df <- components(stl_data) #%>% as_tibble()
+   comp_df <- stl_data$stl[[1]]$fit$decomposition
+   # Needs extra columns for LWP functions to work
+   orig_data <- stl_data$orig_data[[1]] %>% 
+      select(lawa_site_id, CenType, Censored, 
+             yearmon, Season, Year, myDate, RawValue)
+   
+   # Add columns so LWP functions work
+   comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
+   
+   ## Scale noise by lambda here in a for loop (estimating slope each time)
+   for (i in 1:length(scaling_factor)) {
+      
+      # comp_df <- comp_df %>% 
+      #    mutate(final_series = trend +  (season_year * scaling_factor[[i]][1]) + (remainder * scaling_factor[[i]][2]),
+      #           RawValue = final_series)  # Only so named because LWP functions expect that name
+        
+      
+      # Update STL data
+      
+      comp_df$remainder <- comp_df$remainder* scaling_factor[[i]][2]
+      comp_df$season_year <-comp_df$season_year*scaling_factor[[i]][1]
+      
+      comp_df$final_series <- comp_df$trend + comp_df$season_year + comp_df$remainder
+      comp_df$season_adjust <- comp_df$trend - comp_df$season_year
+      
+      #need this value name for LWP function
+      comp_df$RawValue <- comp_df$final_series     
+      
+      if (is_seasonal == TRUE) {
+         senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))  # Pass additional arguments
+      } else {
+         senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))  # Pass additional arguments
+      }
+      
+      #replace STL components
+      stl_data_mod <- stl_data
+      stl_data_mod$stl[[1]]$fit$decomposition <- comp_df
+      
+      #components(stl_data_mod) %>% autoplot()
+      
+      slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
+                         lci = senslope_res$Sen_Lci / 12,
+                         uci = senslope_res$Sen_Uci / 12,
+                         CI_width = uci - lci,
+                         seasonal_sf = scaling_factor[[i]][1],
+                         noise_sf = scaling_factor[[i]][2],
+                         data = list(stl_data_mod),
+                         seasonal = is_seasonal,
+                         MKdata_res = senslope_res)
+      
+      senslope_res_list[[i]] <- slope_df
+   }
+   
+   # Combine each estimate into same tidy dataframe
+   senslope_res_list <- map_df(senslope_res_list, ~ .x)
+   
+   estimate_results <- senslope_res_list %>% 
+      mutate(CI_width = uci - lci)
+   
+   return(estimate_results)
+}
+
+
+
+senslope_res_list[[1]]$data[[1]] %>% 
+   components() %>% autoplot()
+
+
