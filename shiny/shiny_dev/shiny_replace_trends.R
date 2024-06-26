@@ -719,3 +719,76 @@ get_MK_plot <- function(MKdata, equiv_zone = c(-.015, .015)){
   
   return( MK_plot)   
 }
+
+
+
+# scale components
+scale_components<- function(stl_data, scaling_factor = list(c(1,1)), 
+                            is_seasonal = TRUE, analysis_params = list()) {
+  
+  # Container lists
+  complist <- list()
+  senslope_res_list <- list()
+  
+  #comp_df <- components(stl_data) #%>% as_tibble()
+  comp_df <- stl_data$stl[[1]]$fit$decomposition
+  # Needs extra columns for LWP functions to work
+  orig_data <- stl_data$orig_data[[1]] %>% 
+    select(lawa_site_id, CenType, Censored, 
+           yearmon, Season, Year, myDate, RawValue)
+  
+  # Add columns so LWP functions work
+  comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
+  
+  ## Scale noise by lambda here in a for loop (estimating slope each time)
+  for (i in 1:length(scaling_factor)) {
+    
+    # comp_df <- comp_df %>% 
+    #    mutate(final_series = trend +  (season_year * scaling_factor[[i]][1]) + (remainder * scaling_factor[[i]][2]),
+    #           RawValue = final_series)  # Only so named because LWP functions expect that name
+    
+    
+    # Update STL data
+    
+    comp_df$remainder <- comp_df$remainder* scaling_factor[[i]][2]
+    comp_df$season_year <-comp_df$season_year*scaling_factor[[i]][1]
+    
+    comp_df$final_series <- comp_df$trend + comp_df$season_year + comp_df$remainder
+    comp_df$season_adjust <- comp_df$trend - comp_df$season_year
+    
+    #need this value name for LWP function
+    comp_df$RawValue <- comp_df$final_series     
+    
+    if (is_seasonal == TRUE) {
+      senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))  # Pass additional arguments
+    } else {
+      senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))  # Pass additional arguments
+    }
+    
+    #replace STL components
+    stl_data_mod <- stl_data
+    stl_data_mod$stl[[1]]$fit$decomposition <- comp_df
+    
+    #components(stl_data_mod) %>% autoplot()
+    
+    slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
+                       lci = senslope_res$Sen_Lci / 12,
+                       uci = senslope_res$Sen_Uci / 12,
+                       CI_width = uci - lci,
+                       seasonal_sf = scaling_factor[[i]][1],
+                       noise_sf = scaling_factor[[i]][2],
+                       data = list(stl_data_mod),
+                       seasonal = is_seasonal,
+                       MKdata_res = senslope_res)
+    
+    senslope_res_list[[i]] <- slope_df
+  }
+  
+  # Combine each estimate into same tidy dataframe
+  senslope_res_list <- map_df(senslope_res_list, ~ .x)
+  
+  estimate_results <- senslope_res_list %>% 
+    mutate(CI_width = uci - lci)
+  
+  return(estimate_results)
+}
