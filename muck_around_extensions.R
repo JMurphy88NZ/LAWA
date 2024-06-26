@@ -411,6 +411,14 @@ get_QR_est <- function(data, trm = "Month", form = formula(paste0("RawValue~Year
    
 }
 
+comp_df <- components(stl_data)
+comp_df$RawValue <- comp_df$final_series
+
+get_QR_est(comp_df)
+
+
+
+
 
 scale_stl_noise_QR(stl_data) 
 
@@ -476,12 +484,45 @@ scale_stl_noise_QR <- function(stl_data, lambda = seq(from = -1, to = 3, by = 0.
 
 #incorporate scaline with rolling
 
+# scaling w periods -------------------------------------------------------
+
+
 
 undebug(analyze_trend_rolling_alt)
 
 analyze_trend_rolling_alt(data = site_data$`GW-00002`)
 
+cosine_params <-  list(
+   decay_rate = 0.01,
+   initial_amplitude = 2,
+   num_peaks = 2,
+   phase_shift = 0
+)
 
+test_rol_td <- analyze_trend_rolling_QR(site_data$`GW-00002`,
+                                     periods = list("full_length",c(15,10), c(15,5), c(15,0), c(10,5), c(10,0), c(8,3), c(6,1), c(5,0)),
+                                     is_seasonal = TRUE,
+                                     trend_params = cosine_params,
+                                     mod_fun = generate_cosine_series)
+
+cosine_params <-  list(
+   decay_rate = 0.01,
+   initial_amplitude = 2,
+   num_peaks = 2,
+   phase_shift = 0
+)
+
+# first element = seasonal, second element = remainder
+# e.g.1, c(1,1): original seasonal and remanider component
+#e.g.,2  c(0,2): remove seasonal, double  remainder component
+scaling_factor <- list(c(1,1), c(0,1), c(2,1), c(2,2))
+
+test_rol_td <- analyze_trend_rolling_alt(site_data$`GW-00002`,
+                                         scaling_factor = scaling_factor,
+                                         periods = list("full_length", c(10,5)),
+                                         is_seasonal = TRUE,
+                                         trend_params = cosine_params,
+                                         mod_fun = generate_cosine_series)
 
 
 undebug(scale_components)
@@ -494,7 +535,7 @@ test_sc_rol <- scale_components(stl_data),scaling_factor = list(c(1,1), c(1,2), 
 test_sc_rol[[3]]
 
 # scale components
-scale_components<- function(stl_data, 
+scale_components_QR<- function(stl_data, 
                             scaling_factor = list(c(1,1)), 
                             periods = list("full_length", c(5, 0)), 
                             is_seasonal = TRUE, 
@@ -534,16 +575,23 @@ scale_components<- function(stl_data,
       #need this value name for LWP function
       comp_df$RawValue <- comp_df$final_series   
       
-      #replace STL components
-      stl_data_mod <- stl_data
-      stl_data_mod$stl[[1]]$fit$decomposition <- comp_df
+      # #replace STL components
+      # stl_data_mod <- stl_data
+      # stl_data_mod$stl[[1]]$fit$decomposition <- comp_df
       
-      rol_est <- rolling_trend_alt(stl_data_mod,is_seasonal = is_seasonal)
       
-      rol_est[[1]]$seasonal_sf <- scaling_factor[[i]][1]
-      rol_est[[1]]$noise_sf = scaling_factor[[i]][2]
+      rol_est <- get_QR_est(comp_df)
+      
+      # rol_est <- rolling_trend_alt(stl_data_mod,
+      #                              is_seasonal = is_seasonal, 
+      #                              periods = periods,
+      #                              analysis_params = analysis_params)
+      
+      rol_est[[2]]$seasonal_sf <- scaling_factor[[i]][1]
+      rol_est[[2]]$noise_sf = scaling_factor[[i]][2]
    
-   
+      rol_est[[2]] <- rol_est[[2]] %>% relocate(seasonal_sf,noise_sf)
+      
       senslope_res_list[[i]] <- rol_est
    }
     return(senslope_res_list)
@@ -551,46 +599,10 @@ scale_components<- function(stl_data,
 
 
 #######
+test_QR <- scale_components_QR(stl_data,scaling_factor = scaling_factor) 
 
-
-      if (is_seasonal == TRUE) {
-         senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))  # Pass additional arguments
-      } else {
-         senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))  # Pass additional arguments
-      }
-      
-      #replace STL components
-      stl_data_mod <- stl_data
-      stl_data_mod$stl[[1]]$fit$decomposition <- comp_df
-      
-      #components(stl_data_mod) %>% autoplot()
-      
-      slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
-                         lci = senslope_res$Sen_Lci / 12,
-                         uci = senslope_res$Sen_Uci / 12,
-                         CI_width = uci - lci,
-                         seasonal_sf = scaling_factor[[i]][1],
-                         noise_sf = scaling_factor[[i]][2],
-                         data = list(stl_data_mod),
-                         seasonal = is_seasonal,
-                         MKdata_res = senslope_res)
-      
-      senslope_res_list[[i]] <- slope_df
-   }
-   
-   # Combine each estimate into same tidy dataframe
-   senslope_res_list <- map_df(senslope_res_list, ~ .x)
-   
-   estimate_results <- senslope_res_list %>% 
-      mutate(CI_width = uci - lci)
-   
-   return(estimate_results)
-}
 
 test_rt <- rolling_trend(stl_data) 
-
-test_rt[[1]]$seasonal_sf <- scaling_factor[[i]][1]
-test_rt[[1]]$noise_sf = scaling_factor[[i]][2]
 
 
 
@@ -690,6 +702,7 @@ rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)),
 
 #
 analyze_trend_rolling_alt <- function(data, 
+                                  scaling_factor = list(c(1,1)),
                                   is_seasonal = TRUE, 
                                   trend_params = list(initial_amplitude = NULL), 
                                   analysis_params = list(), mod_fun = NULL, 
@@ -705,7 +718,10 @@ analyze_trend_rolling_alt <- function(data,
    if (is.null(mod_fun)) {
       message("Keeping original trend component")
       #estimate_results <- rolling_trend_alt(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
-      estimate_results <- scale_components(stl_data,  periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params)
+      estimate_results <- scale_components(stl_data,  periods = periods, 
+                                           scaling_factor = scaling_factor,
+                                           is_seasonal = is_seasonal, 
+                                           analysis_params = analysis_params)
    } else {
       trend_params$total_length <- nrow(comp_df)  
       message("simulating trend using  function provided from 'mod_fun' parameter")
@@ -725,7 +741,11 @@ analyze_trend_rolling_alt <- function(data,
       
       #estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
       #estimate_results <- rolling_trend_alt(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
-      estimate_results <- scale_components(stl_data,  periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params)
+      estimate_results <- scale_components(stl_data,  
+                                           periods = periods, 
+                                          scaling_factor = scaling_factor,
+                                          is_seasonal = is_seasonal, 
+                                          analysis_params = analysis_params)
       
    }
    
