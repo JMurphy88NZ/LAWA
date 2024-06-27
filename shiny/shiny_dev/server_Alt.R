@@ -590,33 +590,68 @@ server <- function(input, output, session) {
      output$WrapperPlot <- renderUI({
        plot_list <- map(result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
        noise_sf <- unique(.x[[1]]$noise_sf)
-       
+
        plot <- .x[[2]]+
          labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
-       
+
        return(plot)
        })
-       
+
        plot_outputs <- lapply(seq_along(plot_list), function(i) {
          plotname <- paste0("plot", i)
          output[[plotname]] <- renderPlot({ plot_list[[i]] })
          plotOutput(plotname, width = "100%", height = "400px") # Adjust height as needed
        })
-       
+
        do.call(tagList, plot_outputs)
-       # Dynamically wrap plots
-      # wrapped_plots <- do.call(patchwork::wrap_plots, c(plot_list, ncol = 1))
-       
-       #wrapped_plots
+
      })
-     
-     output$summary1 <- renderPrint({
-       result[[1]][[1]]
+     # 
+     # 
+     output$WrapperMKPlots <- renderUI({
+
+       MK_data_list <-  map(result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
+                                         noise_sf <- unique(.x[[1]]$noise_sf)
+                                         #MK_data <- imap_dfr(MK_data, ~tibble(period = .y,.x))
+                                         MK_data <- .x[[1]]$MK
+                                         names(MK_data) <- .x[[1]]$period
+                                         MK_data <- imap_dfr(MK_data, ~tibble(period = .y,.x))
+
+
+                                         MK_data$seasonal_sf <- seasonal_sf
+                                         MK_data$noise_sf <- noise_sf
+
+                                         return(MK_data)
+                                         })
+
+       MK_plotlist <-  map( MK_data_list, ~ {seasonal_sf <- unique(.x$seasonal_sf)
+                                        noise_sf <- unique(.x$noise_sf)
+
+                                  get_ConfCat_from_MK_data(.) %>%
+                                        get_MK_plot(.) +
+                                        labs(title = paste("Seasonal SF:",
+                                                            seasonal_sf, ",",
+                                                            " Noise SF: ",noise_sf ) )
+                                              } )
+
+
+       MKplot_outputs <- lapply(seq_along(MK_plotlist), function(i) {
+         MKplotname <- paste0("MKplot", i)
+         output[[MKplotname]] <- renderPlot({ MK_plotlist[[i]] })
+         plotOutput(MKplotname, width = "100%", height = "400px") # Adjust height as needed
+       })
+
+       do.call(tagList, MKplot_outputs)
      })
-     
-     output$summary2 <- renderPrint({
-       result[[2]][[1]]
-     })
+     # 
+
+     # output$summary1 <- renderPrint({
+     #   result[[1]][[1]]
+     # })
+     # 
+     # output$summary2 <- renderPrint({
+     #   result[[2]][[1]]
+     # })
      
    }) 
  
