@@ -305,7 +305,59 @@ filter_custom_period <- function(ts_data, period = c(5, 0)) {
 #' )
 #'
 #' plot_period_comparison(full_data, period_df)
+# plot_period_comparison <- function(full_data, period_df){
+#   
+#   orig_plot <- full_data %>% 
+#     ggplot(aes(x = yearmon)) +
+#     geom_line(aes(y = final_series))+
+#     theme_bw()
+#   
+#   
+#   slope_df <- period_df %>% 
+#     tidyr::hoist(data, "yearmon") %>% 
+#     tidyr::unnest(yearmon)
+#   
+#   
+#   slope_df <- slope_df %>% 
+#     mutate(period = as.factor(period)) %>% 
+#     dplyr::group_by(period ) %>% 
+#     dplyr::mutate(rowid = dplyr::row_number(),
+#            slope_line = est_slope*rowid,
+#            slope_line_uci = uci*rowid,
+#            slope_line_lci = lci*rowid,
+#     )
+#   
+#   # Adding the slope line
+#   orig_plot <- orig_plot +
+#     geom_line(data = slope_df, aes(x = yearmon, y = slope_line, group = period), 
+#               show.legend = FALSE,
+#               size = 1.5,
+#               colour = "grey")
+#   
+#   # Adding the slope CI 
+#   orig_plot <- orig_plot +
+#     geom_ribbon(data = slope_df, 
+#                 aes(x = yearmon, ymin = slope_line_lci, ymax = slope_line_uci, group = period), 
+#                 alpha = 0.15, color = NA, show.legend = FALSE, fill = "grey")
+#   
+#   return(orig_plot)
+#   
+# }
+
 plot_period_comparison <- function(full_data, period_df){
+  
+  
+  
+  ##
+  MK_data <- period_df$MK
+  names(MK_data) <- period_df$period
+  MK_data <- imap_dfr(MK_data, ~tibble(period = .y,.x))
+  #add conf_int
+  MK_data <- get_ConfCat_from_MK_data(MK_data)
+  
+  period_df <- left_join(period_df, select(MK_data,ConfCat, period ))
+  
+  
   
   orig_plot <- full_data %>% 
     ggplot(aes(x = yearmon)) +
@@ -322,28 +374,36 @@ plot_period_comparison <- function(full_data, period_df){
     mutate(period = as.factor(period)) %>% 
     dplyr::group_by(period ) %>% 
     dplyr::mutate(rowid = dplyr::row_number(),
-           slope_line = est_slope*rowid,
-           slope_line_uci = uci*rowid,
-           slope_line_lci = lci*rowid,
+                  slope_line = est_slope*rowid,
+                  slope_line_uci = uci*rowid,
+                  slope_line_lci = lci*rowid,
     )
   
   # Adding the slope line
   orig_plot <- orig_plot +
-    geom_line(data = slope_df, aes(x = yearmon, y = slope_line, colour = period), 
+    geom_line(data = slope_df, aes(x = yearmon, y = slope_line, group = period,
+                                   colour = ConfCat), 
               show.legend = FALSE,
-              size = 1.5)
+              size = 1)
+  
+  
+  
   
   # Adding the slope CI 
   orig_plot <- orig_plot +
     geom_ribbon(data = slope_df, 
-                aes(x = yearmon, ymin = slope_line_lci, ymax = slope_line_uci, fill = period), 
-                alpha = 0.1, color = NA, show.legend = FALSE)
+                aes(x = yearmon, ymin = slope_line_lci, 
+                    ymax = slope_line_uci,
+                    group = period,
+                    fill = ConfCat), 
+                alpha = 0.1, show.legend = FALSE, )+
+    scale_fill_manual(values = color_mapping, drop = FALSE)+
+    scale_color_manual(values = color_mapping, drop = FALSE)
+  
   
   return(orig_plot)
   
 }
-
-
 
 
 #' Rolling Trend Analysis
@@ -613,52 +673,6 @@ analyze_GAM_wrapper <- function(data,
 
 
 
-
-
-# get_ConfCat <-  function(MK_data){
-#   
-#   conf_cat_df <- MK_data %>%
-#     mutate(
-#       ConfCat = cut(Cd,
-#                   breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
-#                   labels = c(
-#                     "Very likely improving", "Likely improving", "Indeterminate",
-#                     "Likely degrading", "Very likely degrading"
-#                   )
-#     ),
-#     ConfCat = factor(ConfCat,
-#                      levels = rev(c(
-#                        "Very likely improving",
-#                        "Likely improving",
-#                        "Indeterminate",
-#                        "Likely degrading",
-#                        "Very likely degrading"
-#                      ))
-#     ),
-#     TrendScore = as.numeric(ConfCat) - 3,
-#     TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
-#     
-#     return(conf_cat_df )
-# }
-# ## 
-# 
-# 
-# get_MK_plot <- function(MKdata, equiv_zone = c(-.015, .015)){
-#   
-#   MK_plot <- MKdata  %>% 
-#     ggplot(aes(colour = ConfCat))+
-#     geom_point(aes(y = AnnualSenSlope, x = period,size = 1),show.legend = F)+
-#     geom_linerange(aes(ymin = Sen_Lci, ymax = Sen_Uci, x = period), size = 1.5)+
-#     geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
-#     theme_bw()+
-#     theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-#     # Rectangle for the equivalence zone
-#     geom_rect(aes(ymin = min(equiv_zone), ymax = max(equiv_zone), xmin = -Inf, xmax = Inf),
-#               fill = "grey80", alpha = 0.12, colour = NA) +
-#     scale_color_manual(values = color_mapping, drop = FALSE)
-#   
-#   return( MK_plot)   
-# }
 
 color_mapping <- c(
   "Very likely improving" = "green4",
@@ -1011,36 +1025,63 @@ analyze_trend_wrapper <- function(data,
 # #e.g.,2  c(0,2): remove seasonal, double  remainder component
 # scaling_factor <- list(c(1,1), c(0,1), c(2,1), c(2,2))
 # 
-#          result<-        analyze_trend_wrapper(site_data$`GW-00002`,
-#                                          scaling_factor = scaling_factor,
-#                                          periods = list("full_length", c(10,5)),
-#                                          is_seasonal = TRUE,
-#                                          trend_params = cosine_params,
-#                                          mod_fun = generate_cosine_series)
-         
+         # result<-        analyze_trend_wrapper(site_data$`GW-00002`,
+         #                                 scaling_factor = scaling_factor,
+         #                                 periods = list("full_length", c(10,5)),
+         #                                 is_seasonal = TRUE,
+         #                                 trend_params = cosine_params,
+         #                                 mod_fun = generate_cosine_series)
+         # 
        
          #   output$summary1 <- renderPlot({
          #     
-         #     # Extract seasonal_sf for the title
+             # Extract seasonal_sf for the title
          #     seasonal_sf <- unique(result[[1]][[1]]$seasonal_sf)
          #     noise_sf <- unique(result[[1]][[1]]$noise_sf)
-         #     
+         # 
          #   result[[1]][[2]]+
          #     labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
-         #   
-         #   
+         # 
+         # 
          #   plot_list <- map(result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
          #                  noise_sf <- unique(.x[[1]]$noise_sf)
-         #                  
+         # 
          #                  plot <- .x[[2]]+
          #                  labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
-         #                  
+         # 
          #                  return(plot)
          #                  })
-         #   
+         # 
          #   # Dynamically wrap plots
          #   wrapped_plots <- do.call(patchwork::wrap_plots, c(plot_list, ncol = 1))
-         #   
+         # 
          # })
-           
 
+# result
+
+  
+get_ConfCat_from_MK_data <-  function(MK_data ){
+  
+  conf_cat_df <- MK_data %>%
+    mutate(
+      ConfCat = cut(Cd,
+                    breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
+                    labels = c(
+                      "Very likely improving", "Likely improving", "Indeterminate",
+                      "Likely degrading", "Very likely degrading"
+                    )
+      ),
+      ConfCat = factor(ConfCat,
+                       levels = rev(c(
+                         "Very likely improving",
+                         "Likely improving",
+                         "Indeterminate",
+                         "Likely degrading",
+                         "Very likely degrading"
+                       ))
+      ),
+      TrendScore = as.numeric(ConfCat) - 3,
+      TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
+  
+  return(conf_cat_df )
+}

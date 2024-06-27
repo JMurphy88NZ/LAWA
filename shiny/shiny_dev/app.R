@@ -51,6 +51,6 @@ source(here::here("shiny/shiny_dev/ui.R"))
 
 
 #options(shiny.reactlog = FALSE)
-
+#options(shiny.usecairo = FALSE)
 # Run the application
 shinyApp(ui = ui, server = server)
