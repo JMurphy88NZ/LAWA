@@ -912,25 +912,22 @@ scale_components<- function(stl_data,
   ## Scale noise by lambda here in a for loop (estimating slope each time)
   for (i in 1:length(scaling_factor)) {
     
-    # comp_df <- comp_df %>% 
-    #    mutate(final_series = trend +  (season_year * scaling_factor[[i]][1]) + (remainder * scaling_factor[[i]][2]),
-    #           RawValue = final_series)  # Only so named because LWP functions expect that name
-    
-    
+    #set to original
+    comp_df_mod <- comp_df
     # Update STL data
     
-    comp_df$remainder <- comp_df$remainder* scaling_factor[[i]][2]
-    comp_df$season_year <-comp_df$season_year*scaling_factor[[i]][1]
+    comp_df_mod$remainder <- comp_df_mod$remainder* scaling_factor[[i]][2]
+    comp_df_mod$season_year <-comp_df_mod$season_year*scaling_factor[[i]][1]
     
-    comp_df$final_series <- comp_df$trend + comp_df$season_year + comp_df$remainder
-    comp_df$season_adjust <- comp_df$trend - comp_df$season_year
+    comp_df_mod$final_series <- comp_df_mod$trend + comp_df_mod$season_year + comp_df_mod$remainder
+    comp_df_mod$season_adjust <- comp_df_mod$trend - comp_df_mod$season_year
     
     #need this value name for LWP function
-    comp_df$RawValue <- comp_df$final_series   
+    comp_df_mod$RawValue <- comp_df_mod$final_series   
     
-    #replace STL components
+    # #replace STL components
     stl_data_mod <- stl_data
-    stl_data_mod$stl[[1]]$fit$decomposition <- comp_df
+    stl_data_mod$stl[[1]]$fit$decomposition <- comp_df_mod
     
     rol_est <- rolling_trend_alt(stl_data_mod,
                                  is_seasonal = is_seasonal, 

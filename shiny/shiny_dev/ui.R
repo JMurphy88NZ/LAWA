@@ -27,7 +27,7 @@ ui <- fluidPage(
       
       conditionalPanel(
         condition = "input.series_type == 'Linear Trend'",
-        sliderInput("slope", "Slope:", min = -1, max = 1, value = 0.1, step = 0.01),
+        sliderInput("slope", "Slope:", min = -1, max = 1, value = 0.1, step = 0.001),
         sliderInput("intercept", "Intercept:", min = -10, max = 10, value = 0, step = .01)
       ),
       
@@ -51,10 +51,17 @@ ui <- fluidPage(
         titlePanel("Rolling Period Parameters"),
         textInput("rolling_periods", "Enter Rolling Periods (e.g., full_length; 10,2; 5,0):", value = "full_length")
       ),
+      wellPanel(
+        titlePanel("Component Scaling Factors"),
+        textInput("Scaling_Factors", "Enter Scaling Factors (Seasonal,Remainder): e.g., 1,1; 2,1", value = "1,1")
+      ),
       
       actionButton("estimate_noise_btn", "Estimate with Noise Scaling"),
       actionButton("estimate_rolling_btn", "Estimate with Rolling Trend"),
       actionButton("estimate_GAM_btn", "Estimate with GAM"),
+      actionButton("estimate_wrapper_btn", "Estimate with parameters"),
+      
+
       #downloadButton("downloadData", "Download Results")
       downloadButton("downloadRollingData", "Download Rolling Results"),
       downloadButton("downloadNoiseData", "Download Noise Results"),
@@ -70,8 +77,10 @@ ui <- fluidPage(
       plotOutput("simcomponentsPlot"),
       plotOutput("rolling_period_plot"),
       #plotOutput("slope_est_Plot"),
-      plotOutput("MKplot")
+      plotOutput("MKplot"),
       #verbatimTextOutput("summary")
+      verbatimTextOutput("summary1"),
+      verbatimTextOutput("summary2")
     )
   )
 )
