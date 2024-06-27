@@ -284,6 +284,8 @@ server <- function(input, output, session) {
   #rolling_results <- reactiveVal(NULL)
   #noise_results <- reactiveVal(NULL)
   
+  
+
   observeEvent(input$estimate_rolling_btn, {
     
     shiny::showNotification("Started estimate rolling button event", type = "message")
@@ -491,7 +493,132 @@ server <- function(input, output, session) {
      }
    )
    
-   
-  
   })
+   
+
+  
+   observeEvent(input$estimate_wrapper_btn, {
+     
+    # browser()
+     
+     shiny::showNotification("Started estimate trend wrapper event", type = "message")
+     
+     trend_data <- simulate_trend()
+     
+     
+     scaling_input <- strsplit(input$Scaling_Factors, ";")[[1]]
+     
+     scaling_factors <-  lapply(scaling_input, function(x){
+                               sf <- as.numeric(unlist(strsplit(x, ",")))
+                               return(sf)
+                               })
+     
+     
+       
+       
+       
+     # Parse the periods input by ";", e.g, 'full_length; 10,2; 5,0'
+     periods_input <- strsplit(input$rolling_periods, ";")[[1]]
+     periods <- lapply(periods_input, function(period) {
+       if (period == "full_length") {
+         return("full_length")
+       } else {
+         as.numeric(unlist(strsplit(period, ",")))
+       }
+     })
+     
+     # 
+     if (is.null(trend_data)) {
+       input_data <- data()
+       trend_params <- list()
+       mod_fun <- as.null()
+     } else {
+       input_data <- trend_data$input_data
+       
+       
+     #params for modifying trend using simulate functions
+       
+       if (input$series_type == "Cosine") {
+         trend_params <- list()
+         trend_params$initial_amplitude <- input$initial_amplitude
+         trend_params$decay_rate <- input$decay_rate
+         trend_params$num_peaks <- input$num_peaks
+         trend_params$phase_shift <- input$phase_shift
+       } else if (input$series_type == "Linear Trend") {
+         trend_params <- list()
+         trend_params$slope <- input$slope
+         trend_params$intercept <- input$intercept
+       } else if (input$series_type == "Level Shift With Ramp") {
+         trend_params <- list()
+         trend_params$baseline_amp <- input$baseline_amp
+         trend_params$amp_change <- input$amp_change
+         trend_params$ramp_start <- input$ramp_start
+         trend_params$ramp_length <- input$ramp_length
+         trend_params$steepness <- input$steepness
+       } else if (input$series_type == "Linex") {
+         trend_params <- list()
+         trend_params$amplitude <- input$amplitude
+         trend_params$x_min <- input$x_min
+         trend_params$scale <- input$scale
+       }
+       
+       mod_fun <- switch(input$series_type,
+                         "Cosine" = generate_cosine_series,
+                         "Linear Trend" = generate_linear_trend,
+                         "Level Shift With Ramp" = generate_level_shift_with_ramp,
+                         "Linex" = generate_linex)
+       
+       
+     }
+     
+    
+     
+     
+     result <- tryCatch({analyze_trend_wrapper(input_data, 
+                                               periods = periods, 
+                                               scaling_factor = scaling_factors,
+                                               is_seasonal = TRUE,
+                                               trend_params = trend_params,
+                                               mod_fun = mod_fun)
+     },error = function(e) {
+       # Display a user-friendly message
+       showNotification("An error occurred.Check period input format", type = "error")
+       NULL  # Return NULL if an error occurs
+     })
+     
+     
+     output$WrapperPlot <- renderUI({
+       plot_list <- map(result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
+       noise_sf <- unique(.x[[1]]$noise_sf)
+       
+       plot <- .x[[2]]+
+         labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
+       
+       return(plot)
+       })
+       
+       plot_outputs <- lapply(seq_along(plot_list), function(i) {
+         plotname <- paste0("plot", i)
+         output[[plotname]] <- renderPlot({ plot_list[[i]] })
+         plotOutput(plotname, width = "100%", height = "400px") # Adjust height as needed
+       })
+       
+       do.call(tagList, plot_outputs)
+       # Dynamically wrap plots
+      # wrapped_plots <- do.call(patchwork::wrap_plots, c(plot_list, ncol = 1))
+       
+       #wrapped_plots
+     })
+     
+     output$summary1 <- renderPrint({
+       result[[1]][[1]]
+     })
+     
+     output$summary2 <- renderPrint({
+       result[[2]][[1]]
+     })
+     
+   }) 
+ 
+
 }

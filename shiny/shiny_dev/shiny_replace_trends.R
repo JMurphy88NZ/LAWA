@@ -1011,9 +1011,36 @@ analyze_trend_wrapper <- function(data,
 # #e.g.,2  c(0,2): remove seasonal, double  remainder component
 # scaling_factor <- list(c(1,1), c(0,1), c(2,1), c(2,2))
 # 
-#                 analyze_trend_wrapper(site_data$`GW-00002`,
+#          result<-        analyze_trend_wrapper(site_data$`GW-00002`,
 #                                          scaling_factor = scaling_factor,
 #                                          periods = list("full_length", c(10,5)),
 #                                          is_seasonal = TRUE,
 #                                          trend_params = cosine_params,
 #                                          mod_fun = generate_cosine_series)
+         
+       
+         #   output$summary1 <- renderPlot({
+         #     
+         #     # Extract seasonal_sf for the title
+         #     seasonal_sf <- unique(result[[1]][[1]]$seasonal_sf)
+         #     noise_sf <- unique(result[[1]][[1]]$noise_sf)
+         #     
+         #   result[[1]][[2]]+
+         #     labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
+         #   
+         #   
+         #   plot_list <- map(result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
+         #                  noise_sf <- unique(.x[[1]]$noise_sf)
+         #                  
+         #                  plot <- .x[[2]]+
+         #                  labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
+         #                  
+         #                  return(plot)
+         #                  })
+         #   
+         #   # Dynamically wrap plots
+         #   wrapped_plots <- do.call(patchwork::wrap_plots, c(plot_list, ncol = 1))
+         #   
+         # })
+           
+

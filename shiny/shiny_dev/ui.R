@@ -77,10 +77,14 @@ ui <- fluidPage(
       plotOutput("simcomponentsPlot"),
       plotOutput("rolling_period_plot"),
       #plotOutput("slope_est_Plot"),
+      uiOutput("WrapperPlot"),
+      #plotOutput("WrapperPlot"),
       plotOutput("MKplot"),
+      
       #verbatimTextOutput("summary")
       verbatimTextOutput("summary1"),
       verbatimTextOutput("summary2")
+
     )
   )
 )
