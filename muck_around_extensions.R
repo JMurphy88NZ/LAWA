@@ -339,6 +339,7 @@ senslope_res_list[[1]]$data[[1]] %>%
    components() %>% autoplot()
 
 
+data <- comp_df
 ####
 get_QR_est <- function(data, trm = "Month", 
                        form = formula(paste0("RawValue~Year+", trm)),
@@ -361,55 +362,83 @@ get_QR_est <- function(data, trm = "Month",
    
    ##
    
+   sjplot <- qr_med %>%  sjPlot::plot_model(terms = "Year") 
+   conf_data <- sjplot$data
+   
+   conf_cat_df <- conf_data  %>%
+      mutate(Cd = if_else(estimate < 0, 1 - p.value/2, p.value/2),
+             ConfCat = cut(Cd,
+                           breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
+                           labels = c(
+                              "Very likely improving", "Likely improving", "Indeterminate",
+                              "Likely degrading", "Very likely degrading"
+                           )
+             ),
+             ConfCat = factor(ConfCat,
+                              levels = rev(c(
+                                 "Very likely improving",
+                                 "Likely improving",
+                                 "Indeterminate",
+                                 "Likely degrading",
+                                 "Very likely degrading"
+                              ))
+             ),
+             TrendScore = as.numeric(ConfCat) - 3,
+             TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
+   
+      #color_mapping[conf_cat_df$ConfCat]   
+   
+   # sjplot+
+   #    scale_colour_manual(values = color_mapping[conf_cat_df$ConfCat])
+   
+   # qr_med_sum <- summary(qr_med, se = "boot", covariance = TRUE, R = 300) 
+   # 
+   # # Extract the coefficients table from the summary
+   # coef_table <- qr_med_sum$coefficients
+   # 
+   # # Extract the lower and upper bounds of the confidence intervals
+   # coef_table_df <- data.frame(
+   #    intercept = coef_table[1, 1],
+   #    lci_int = coef_table[1,1] - 1.96 * coef_table[1, 2],
+   #    uci_int = coef_table[1, 1] + 1.96 * coef_table[1, 2],
+   #    trend = coef_table[2, 1],
+   #    trend_CI = 1.96 * coef_table[2, 2],
+   #    lci_trend = (coef_table[2,1] - 1.96 * coef_table[2, 2]),
+   #    uci_trend = (coef_table[2, 1] + 1.96 * coef_table[2, 2])
+   # )
+   # 
+   # 
+   # # Example data creation for plotting (modify according to your actual data)
+   # years <- seq(min(data$Year), max(data$Year), by = 1)
+   # predicted_df <- data.frame(Year = years)
    
    
-   qr_med_sum <- summary(qr_med, se = "boot", covariance = TRUE, R = 300) 
-   
-   # Extract the coefficients table from the summary
-   coef_table <- qr_med_sum$coefficients
-   
-   # Extract the lower and upper bounds of the confidence intervals
-   coef_table_df <- data.frame(
-      intercept = coef_table[1, 1],
-      lci_int = coef_table[1,1] - 1.96 * coef_table[1, 2],
-      uci_int = coef_table[1, 1] + 1.96 * coef_table[1, 2],
-      trend = coef_table[2, 1],
-      trend_CI = 1.96 * coef_table[2, 2],
-      lci_trend = (coef_table[2,1] - 1.96 * coef_table[2, 2]),
-      uci_trend = (coef_table[2, 1] + 1.96 * coef_table[2, 2])
-   )
-   
-   
-   # Example data creation for plotting (modify according to your actual data)
-   years <- seq(min(data$Year), max(data$Year), by = 1)
-   predicted_df <- data.frame(Year = years)
-   
-   
-   # Calculate predicted values using the coefficients from your model output
-   predicted_df$Predicted_Value <- coef_table_df$intercept  + (coef_table_df$trend * predicted_df$Year)
-   predicted_df$trend_CI  <- coef_table_df$trend_CI 
+   # # Calculate predicted values using the coefficients from your model output
+   # predicted_df$Predicted_Value <- coef_table_df$intercept  + (coef_table_df$trend * predicted_df$Year)
+   # predicted_df$trend_CI  <- coef_table_df$trend_CI 
+   # 
+   # 
+   # 
+   # 
+   # data$fitted <-  predict(qr_med, newdata = data)
+   # 
+   # QR_plot <-  ggplot( data, aes(x = Year)) +
+   #    geom_point(aes(y = RawValue, color = "Data Points"), alpha = 0.6) +  
+   #    geom_point(aes(y = fitted, color = "Fitted"), alpha = 0.6, ) +  
+   #    geom_line(data = predicted_df,
+   #              aes(y = Predicted_Value, 
+   #                  x = Year, 
+   #                  group = 1,
+   #                  color = "Quantile Regression"), size = 1) +
+   #    geom_ribbon(data = predicted_df,aes(
+   #       ymin = Predicted_Value - trend_CI, 
+   #       ymax = Predicted_Value + trend_CI),
+   #       alpha = .4)+
+   #    theme_bw()
    
    
    
-   
-   data$fitted <-  predict(qr_med, newdata = data)
-   
-   QR_plot <-  ggplot( data, aes(x = Year)) +
-      geom_point(aes(y = RawValue, color = "Data Points"), alpha = 0.6) +  
-      geom_point(aes(y = fitted, color = "Fitted"), alpha = 0.6, ) +  
-      geom_line(data = predicted_df,
-                aes(y = Predicted_Value, 
-                    x = Year, 
-                    group = 1,
-                    color = "Quantile Regression"), size = 1) +
-      geom_ribbon(data = predicted_df,aes(
-         ymin = Predicted_Value - trend_CI, 
-         ymax = Predicted_Value + trend_CI),
-         alpha = .4)
-   
-   
-   
-   return(list(qr_med,coef_table_df,QR_plot ))
+   return(conf_cat_df)
    
 }
 
@@ -422,66 +451,6 @@ get_QR_est(comp_df)
 
 
 
-scale_stl_noise_QR(stl_data) 
-
-scale_stl_noise_QR <- function(stl_data, lambda = seq(from = -1, to = 3, by = 0.5), is_seasonal = TRUE, analysis_params = list()) {
-   
-   # Container lists
-   QR_results <- list()
-   complist <- list()
-   senslope_res_list <- list()
-   
-   comp_df <- components(stl_data) %>% as_tibble()
-   
-   #needs extra columns for LWP functions to work
-   #   orig_data <- stl_data$orig_data[[1]] %>% 
-   #     select(lawa_site_id, CenType,Censored, 
-   #            yearmon,Season, Year, myDate,RawValue)
-   # 
-   # comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
-   
-   
-   
-   ## Simulate and replace trend here
-   # comp_df$trend
-   ##
-   
-   for (lambda_value in lambda) {
-      
-      
-      comp_df <- comp_df %>% 
-         mutate(  simulated = final_series + (remainder * lambda_value),
-                  RawValue = simulated  ) 
-      
-      get_QR_est <- safely(get_QR_est)
-      
-      QR_est <- get_QR_est(comp_df)
-      #comp_df$RawValue <-  comp_df$final_series
-      
-      
-      QR_results[[as.character(lambda_value)]] <- list(QR_est)
-      
-      # if (is_seasonal == TRUE){
-      #   senslope_res <- do.call(SeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))  # Pass additional arguments
-      # } else {
-      #   senslope_res <- do.call(NonSeasonalTrendAnalysis, c(list(as.data.frame(comp_df)), analysis_params))  # Pass additional arguments
-      # }
-      # 
-      # slope_df <- tibble(est_slope = senslope_res$AnnualSenSlope / 12,
-      #                    lci = senslope_res$Sen_Lci / 12,
-      #                    uci = senslope_res$Sen_Uci / 12,
-      #                    CI_width =uci - lci)
-      
-      #senslope_res_list[[as.character(lambda_value)]] <- slope_df
-   }
-   
-   #senslope_res_list <- imap_dfr(senslope_res_list, ~ tibble(lambda = .y, .x))
-   
-   #estimate_results <- senslope_res_list %>% 
-   #  mutate(CI_width = uci - lci)
-   
-   return(QR_results)
-}
 
 
 #incorporate scaline with rolling
@@ -546,7 +515,7 @@ scale_components_QR<- function(stl_data,
    
    # Container lists
    complist <- list()
-   senslope_res_list <- list()
+   QR_res_list <- list()
    
    #comp_df <- components(stl_data) #%>% as_tibble()
    comp_df <- stl_data$stl[[1]]$fit$decomposition
@@ -560,48 +529,92 @@ scale_components_QR<- function(stl_data,
    
    ## Scale noise by lambda here in a for loop (estimating slope each time)
    for (i in 1:length(scaling_factor)) {
-      
-      # comp_df <- comp_df %>% 
-      #    mutate(final_series = trend +  (season_year * scaling_factor[[i]][1]) + (remainder * scaling_factor[[i]][2]),
-      #           RawValue = final_series)  # Only so named because LWP functions expect that name
-      
-      
+   
+      #set to original
+      comp_df_mod <- comp_df
       # Update STL data
       
-      comp_df$remainder <- comp_df$remainder* scaling_factor[[i]][2]
-      comp_df$season_year <-comp_df$season_year*scaling_factor[[i]][1]
+      comp_df_mod$remainder <- comp_df_mod$remainder* scaling_factor[[i]][2]
+      comp_df_mod$season_year <-comp_df_mod$season_year*scaling_factor[[i]][1]
       
-      comp_df$final_series <- comp_df$trend + comp_df$season_year + comp_df$remainder
-      comp_df$season_adjust <- comp_df$trend - comp_df$season_year
+      comp_df_mod$final_series <- comp_df_mod$trend + comp_df_mod$season_year + comp_df_mod$remainder
+      comp_df_mod$season_adjust <- comp_df_mod$trend - comp_df_mod$season_year
       
       #need this value name for LWP function
-      comp_df$RawValue <- comp_df$final_series   
+      comp_df_mod$RawValue <- comp_df_mod$final_series   
       
       # #replace STL components
-      # stl_data_mod <- stl_data
-      # stl_data_mod$stl[[1]]$fit$decomposition <- comp_df
+       stl_data_mod <- stl_data
+       stl_data_mod$stl[[1]]$fit$decomposition <- comp_df_mod
+       
+       components(stl_data_mod) %>% autoplot()
       
       
-      rol_est <- get_QR_est(comp_df)
+     QR_est <- rolling_trend_QR(stl_data_mod,is_seasonal = is_seasonal, 
+                                   periods = periods,
+                                 analysis_params = analysis_params)
       
       # rol_est <- rolling_trend_alt(stl_data_mod,
       #                              is_seasonal = is_seasonal, 
       #                              periods = periods,
       #                              analysis_params = analysis_params)
       
-      rol_est[[2]]$seasonal_sf <- scaling_factor[[i]][1]
-      rol_est[[2]]$noise_sf = scaling_factor[[i]][2]
-   
-      rol_est[[2]] <- rol_est[[2]] %>% relocate(seasonal_sf,noise_sf)
+
       
-      senslope_res_list[[i]] <- rol_est
+     QR_est <- map(QR_est, ~ {.$seasonal_sf <- scaling_factor[[i]][1]
+                     .$noise_sf <-  scaling_factor[[i]][2] 
+                     return(.) } )            
+      
+
+      
+     QR_res_list[[i]] <- QR_est
    }
-    return(senslope_res_list)
+    return(QR_res_list)
    }  
 
 
 #######
+scaling_factor = list(c(0,5), c(3,1), c(4,4))
+
+undebug(scale_components_QR)
+undebug(rolling_trend_QR)
+
 test_QR <- scale_components_QR(stl_data,scaling_factor = scaling_factor) 
+
+debug( scale_components_QR)
+# Flatten the list and combine into a single tibble
+test_QR_df <- test_QR %>%
+   map_dfr(~ {
+      bind_rows(.x, .id = "period")
+   }, .id = "scaling_factor") 
+
+test_QR_df %>% 
+   ggplot(aes(x = period, y = estimate, colour = ConfCat))+
+   geom_point(aes(size = 1),show.legend = F)+
+   geom_linerange(aes(ymin = conf.low, ymax = conf.high, x = period), size = 1.5)+
+   geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
+   theme_bw()+
+   scale_color_manual(values = color_mapping) +  # Use the custom color mapping
+   labs(title = "Estimates with Confidence Intervals",
+        x = "Period",
+        y = "Estimate",
+        color = "Confidence Category")+
+   facet_wrap(~scaling_factor)
+
+
+
+
+#   MK_plot <- MKdata  %>% 
+#     ggplot(aes(colour = ConfCat))+
+#     geom_point(aes(y = AnnualSenSlope, x = period,size = 1),show.legend = F)+
+#     geom_linerange(aes(ymin = Sen_Lci, ymax = Sen_Uci, x = period), size = 1.5)+
+#     geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
+#     theme_bw()+
+#     theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+#     # Rectangle for the equivalence zone
+#     geom_rect(aes(ymin = min(equiv_zone), ymax = max(equiv_zone), xmin = -Inf, xmax = Inf),
+#               fill = "grey80", alpha = 0.12, colour = NA) +
+#     scale_color_manual(values = color_mapping, drop = FALSE)
 
 
 test_rt <- rolling_trend(stl_data) 
@@ -735,3 +748,115 @@ analyze_trend_rolling_alt <- function(data,
    return(estimate_results)
 }
 
+
+stl_data <- Get_STL(site_data$`GW-00004`)
+# Scale components and rolling QR
+
+debug(rolling_trend_QR)
+test_QR_rolling <- rolling_trend_QR(stl_data)
+
+# scale components
+scale_components_QR_rolling <- function(stl_data, 
+                               scaling_factor = list(c(1,1)), 
+                               periods = list("full_length", c(5, 0)), 
+                               is_seasonal = TRUE, 
+                               analysis_params = list(),
+                               ...) {
+   
+   # Container lists
+   complist <- list()
+   senslope_res_list <- list()
+   
+   #comp_df <- components(stl_data) #%>% as_tibble()
+   comp_df <- stl_data$stl[[1]]$fit$decomposition
+   # Needs extra columns for LWP functions to work
+   orig_data <- stl_data$orig_data[[1]] %>% 
+      select(lawa_site_id, CenType, Censored, 
+             yearmon, Season, Year, myDate, RawValue)
+   
+   # Add columns so LWP functions work
+   comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
+   
+   ## Scale noise by lambda here in a for loop (estimating slope each time)
+   for (i in 1:length(scaling_factor)) {
+      
+      # comp_df <- comp_df %>% 
+      #    mutate(final_series = trend +  (season_year * scaling_factor[[i]][1]) + (remainder * scaling_factor[[i]][2]),
+      #           RawValue = final_series)  # Only so named because LWP functions expect that name
+      
+      
+      # Update STL data
+      
+      comp_df$remainder <- comp_df$remainder* scaling_factor[[i]][2]
+      comp_df$season_year <-comp_df$season_year*scaling_factor[[i]][1]
+      
+      comp_df$final_series <- comp_df$trend + comp_df$season_year + comp_df$remainder
+      comp_df$season_adjust <- comp_df$trend - comp_df$season_year
+      
+      #need this value name for LWP function
+      comp_df$RawValue <- comp_df$final_series   
+      
+      # #replace STL components
+       stl_data_mod <- stl_data
+       stl_data_mod$stl[[1]]$fit$decomposition <- comp_df
+      
+      QR_res <- rolling_trend_QR(stl_data_mod, 
+                                 is_seasonal = is_seasonal,
+                                 periods = periods,
+                                 analysis_params = analysis_params)
+      #rol_est <- get_QR_est(comp_df)
+      
+      # rol_est <- rolling_trend_alt(stl_data_mod,
+      #                              is_seasonal = is_seasonal, 
+      #                              periods = periods,
+      #                              analysis_params = analysis_params)
+      
+      rol_est[[2]]$seasonal_sf <- scaling_factor[[i]][1]
+      rol_est[[2]]$noise_sf = scaling_factor[[i]][2]
+      
+      rol_est[[2]] <- rol_est[[2]] %>% relocate(seasonal_sf,noise_sf)
+      
+      senslope_res_list[[i]] <- rol_est
+   }
+   return(senslope_res_list)
+}  
+
+
+qr_med_sum <- summary(QR_res$period_full_length[[1]], se = "boot", covariance = TRUE, R = 300) 
+
+
+###
+
+# Extract the coefficients table from the summary
+coef_table <- qr_med_sum$coefficients
+
+# Extract the lower and upper bounds of the confidence intervals
+coef_table_df <- data.frame(
+   intercept = coef_table[1, 1],
+   lci_int = coef_table[1,1] - 1.96 * coef_table[1, 2],
+   uci_int = coef_table[1, 1] + 1.96 * coef_table[1, 2],
+   trend = coef_table[2, 1],
+   trend_CI = 1.96 * coef_table[2, 2],
+   lci_trend = (coef_table[2,1] - 1.96 * coef_table[2, 2]),
+   uci_trend = (coef_table[2, 1] + 1.96 * coef_table[2, 2])
+)
+
+
+# Example data creation for plotting (modify according to your actual data)
+years <- seq(min(data$Year), max(data$Year), by = 1)
+predicted_df <- data.frame(Year = years)
+
+
+sjplot <- qr_med %>%  sjPlot::plot_model(terms = "Year") 
+conf_data <- sjplot$data
+
+
+
+
+
+
+
+
+
+ 
+             
