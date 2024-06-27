@@ -52,9 +52,9 @@ ui <- fluidPage(
       
      # actionButton("estimate_noise_btn", "Estimate with Noise Scaling"),
       #actionButton("estimate_rolling_btn", "Estimate with Rolling Trend"),
-      actionButton("estimate_GAM_btn", "Estimate with GAM"),
-      actionButton("estimate_wrapper_btn", "Estimate with parameters"),
-      
+      actionButton("estimate_GAM_btn", "Estimate GAM"),
+      actionButton("estimate_wrapper_btn", "Estimate Mann Kendall / SenSlope"),
+      actionButton("estimate_wrapper_QR_btn", "Estimate QR"),
 
       #downloadButton("downloadData", "Download Results")
       #downloadButton("downloadRollingData", "Download Rolling Results"),
@@ -72,7 +72,8 @@ ui <- fluidPage(
       #plotOutput("rolling_period_plot"),
       #plotOutput("slope_est_Plot"),
       uiOutput("WrapperPlot"),
-      uiOutput("WrapperMKPlots")
+      uiOutput("WrapperMKPlots"),
+     plotOutput("QRPlots")
       #plotOutput("WrapperPlot"),
       #plotOutput("MKplot"),
           #verbatimTextOutput("summary")

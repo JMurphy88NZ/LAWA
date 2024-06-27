@@ -417,5 +417,122 @@ server <- function(input, output, session) {
      
    }) 
  
+   
+   observeEvent(input$estimate_wrapper_QR_btn, {
+     
+     # browser()
+     
+     shiny::showNotification("Started QR estimate", type = "message")
+     
+     trend_data <- simulate_trend()
+     
+     
+     scaling_input <- strsplit(input$Scaling_Factors, ";")[[1]]
+     
+     scaling_factors <-  lapply(scaling_input, function(x){
+       sf <- as.numeric(unlist(strsplit(x, ",")))
+       return(sf)
+     })
+     
+     
+     
+     
+     
+     # Parse the periods input by ";", e.g, 'full_length; 10,2; 5,0'
+     periods_input <- strsplit(input$rolling_periods, ";")[[1]]
+     periods <- lapply(periods_input, function(period) {
+       if (period == "full_length") {
+         return("full_length")
+       } else {
+         as.numeric(unlist(strsplit(period, ",")))
+       }
+     })
+     
+     # 
+     if (is.null(trend_data)) {
+       input_data <- data()
+       trend_params <- list()
+       mod_fun <- as.null()
+     } else {
+       input_data <- trend_data$input_data
+       
+       
+       #params for modifying trend using simulate functions
+       
+       if (input$series_type == "Cosine") {
+         trend_params <- list()
+         trend_params$initial_amplitude <- input$initial_amplitude
+         trend_params$decay_rate <- input$decay_rate
+         trend_params$num_peaks <- input$num_peaks
+         trend_params$phase_shift <- input$phase_shift
+       } else if (input$series_type == "Linear Trend") {
+         trend_params <- list()
+         trend_params$slope <- input$slope
+         trend_params$intercept <- input$intercept
+       } else if (input$series_type == "Level Shift With Ramp") {
+         trend_params <- list()
+         trend_params$baseline_amp <- input$baseline_amp
+         trend_params$amp_change <- input$amp_change
+         trend_params$ramp_start <- input$ramp_start
+         trend_params$ramp_length <- input$ramp_length
+         trend_params$steepness <- input$steepness
+       } else if (input$series_type == "Linex") {
+         trend_params <- list()
+         trend_params$amplitude <- input$amplitude
+         trend_params$x_min <- input$x_min
+         trend_params$scale <- input$scale
+       }
+       
+       mod_fun <- switch(input$series_type,
+                         "Cosine" = generate_cosine_series,
+                         "Linear Trend" = generate_linear_trend,
+                         "Level Shift With Ramp" = generate_level_shift_with_ramp,
+                         "Linex" = generate_linex)
+       
+       
+     }
+     
+     
+     
+     
+     result <- tryCatch({analyze_trend_wrapper_QR(input_data, 
+                                               periods = periods, 
+                                               scaling_factor = scaling_factors,
+                                               is_seasonal = TRUE,
+                                               trend_params = trend_params,
+                                               mod_fun = mod_fun)
+     },error = function(e) {
+       # Display a user-friendly message
+       showNotification("An error occurred.Check period input format", type = "error")
+       NULL  # Return NULL if an error occurs
+     })
+     
+     
+     
+     output$QRPlots <- renderPlot({
+       
+       QR_df <-  result %>%
+         map_dfr(~ {
+           bind_rows(.x, .id = "period")
+         }, .id = "scaling_factor")
+
+       QR_df %>%
+         ggplot(aes(x = period, y = estimate, colour = ConfCat))+
+         geom_point(aes(size = 1),show.legend = F)+
+         geom_linerange(aes(ymin = conf.low, ymax = conf.high, x = period), size = 1.5)+
+         geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
+         theme_bw()+
+         scale_color_manual(values = color_mapping) +  # Use the custom color mapping
+         labs(title = "Estimates with Confidence Intervals",
+              x = "Period",
+              y = "Estimate",
+              color = "Confidence Category")+
+         facet_wrap(~scaling_factor)
+       
+       
+     })
+     
+   })
+     
 
 }
