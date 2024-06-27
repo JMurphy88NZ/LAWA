@@ -10,13 +10,7 @@ ui <- fluidPage(
       selectInput("series_type", "Select Trend Type:",
                   choices = c("NULL", "Cosine", "Linear Trend", "Level Shift With Ramp", "Linex")),
       checkboxInput("is_seasonal", "Is Seasonal", TRUE),
-      wellPanel(
-        titlePanel("Noise Scaling Parameters"),
-        sliderInput("lambda_min", "Lambda Min:", min = -5, max = 5, value = -1, step = 0.1),
-        sliderInput("lambda_max", "Lambda Max:", min = -5, max = 5, value = 3, step = 0.1),
-        sliderInput("lambda_step", "Lambda Step:", min = 0.01, max = 1, value = 0.5, step = 0.01)
-      ),
-      
+
       conditionalPanel(
         condition = "input.series_type == 'Cosine'",
         sliderInput("initial_amplitude", "Initial Amplitude:", min = -5, max = 5, value = .5, step = .005),
@@ -56,15 +50,15 @@ ui <- fluidPage(
         textInput("Scaling_Factors", "Enter Scaling Factors (Seasonal,Remainder): e.g., 1,1; 2,1", value = "1,1")
       ),
       
-      actionButton("estimate_noise_btn", "Estimate with Noise Scaling"),
-      actionButton("estimate_rolling_btn", "Estimate with Rolling Trend"),
+     # actionButton("estimate_noise_btn", "Estimate with Noise Scaling"),
+      #actionButton("estimate_rolling_btn", "Estimate with Rolling Trend"),
       actionButton("estimate_GAM_btn", "Estimate with GAM"),
       actionButton("estimate_wrapper_btn", "Estimate with parameters"),
       
 
       #downloadButton("downloadData", "Download Results")
-      downloadButton("downloadRollingData", "Download Rolling Results"),
-      downloadButton("downloadNoiseData", "Download Noise Results"),
+      #downloadButton("downloadRollingData", "Download Rolling Results"),
+     # downloadButton("downloadNoiseData", "Download Noise Results"),
       #downloadButton("downloadPlot", "Download Plot"),
       downloadButton("downloadAll", "Download All")
 
@@ -74,7 +68,7 @@ ui <- fluidPage(
       plotOutput("originalDataPlot"),
       plotOutput("GAMPlot"),
       plotOutput("simulatedTrendPlot"),
-      plotOutput("simcomponentsPlot"),
+     # plotOutput("simcomponentsPlot"),
       #plotOutput("rolling_period_plot"),
       #plotOutput("slope_est_Plot"),
       uiOutput("WrapperPlot"),
