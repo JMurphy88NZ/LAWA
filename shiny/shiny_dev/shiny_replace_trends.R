@@ -1085,3 +1085,207 @@ get_ConfCat_from_MK_data <-  function(MK_data ){
   
   return(conf_cat_df )
 }
+
+#QR functions
+
+
+get_QR_est <- function(data, trm = "Month", 
+                       form = formula(paste0("RawValue~Year+", trm)),
+                       analysis_params = list()) {
+  
+  data$RawValue[data$RawValue == 0] <- 0.00001  
+  
+  data$myDate <-   as.Date(data$yearmon) 
+  data$Year <- lubridate::year( data$myDate )
+  data$Month <- as.factor(lubridate::month(data$myDate ))
+  
+  
+  
+  
+  qr_med <-  quantreg::rq(formula = form,
+                          data =  data,
+                          tau =  .5, #median
+                          contrasts = list(Month = contr.sum),
+                          method = "fn")
+  
+  ##
+  
+  sjplot <- qr_med %>%  sjPlot::plot_model(terms = "Year") 
+  conf_data <- sjplot$data
+  
+  conf_cat_df <- conf_data  %>%
+    mutate(Cd = if_else(estimate < 0, 1 - p.value/2, p.value/2),
+           ConfCat = cut(Cd,
+                         breaks = c(-0.1, 0.1, 0.33, 0.67, 0.90, 1.1),
+                         labels = c(
+                           "Very likely improving", "Likely improving", "Indeterminate",
+                           "Likely degrading", "Very likely degrading"
+                         )
+           ),
+           ConfCat = factor(ConfCat,
+                            levels = rev(c(
+                              "Very likely improving",
+                              "Likely improving",
+                              "Indeterminate",
+                              "Likely degrading",
+                              "Very likely degrading"
+                            ))
+           ),
+           TrendScore = as.numeric(ConfCat) - 3,
+           TrendScore = ifelse(is.na(TrendScore), NA, TrendScore))
+  
+  return(conf_cat_df)
+  
+}
+
+
+# scale components
+scale_components_QR<- function(stl_data, 
+                               scaling_factor = list(c(1,1)), 
+                               periods = list("full_length", c(5, 0)), 
+                               is_seasonal = TRUE, 
+                               analysis_params = list(),
+                               ...) {
+  
+  # Container lists
+  complist <- list()
+  QR_res_list <- list()
+  
+  #comp_df <- components(stl_data) #%>% as_tibble()
+  comp_df <- stl_data$stl[[1]]$fit$decomposition
+  # Needs extra columns for LWP functions to work
+  orig_data <- stl_data$orig_data[[1]] %>% 
+    select(lawa_site_id, CenType, Censored, 
+           yearmon, Season, Year, myDate, RawValue)
+  
+  # Add columns so LWP functions work
+  comp_df <- comp_df %>% left_join(orig_data, by = "yearmon")
+  
+  ## Scale noise by lambda here in a for loop (estimating slope each time)
+  for (i in 1:length(scaling_factor)) {
+    
+    #set to original
+    comp_df_mod <- comp_df
+    # Update STL data
+    
+    comp_df_mod$remainder <- comp_df_mod$remainder* scaling_factor[[i]][2]
+    comp_df_mod$season_year <-comp_df_mod$season_year*scaling_factor[[i]][1]
+    
+    comp_df_mod$final_series <- comp_df_mod$trend + comp_df_mod$season_year + comp_df_mod$remainder
+    comp_df_mod$season_adjust <- comp_df_mod$trend - comp_df_mod$season_year
+    
+    #need this value name for LWP function
+    comp_df_mod$RawValue <- comp_df_mod$final_series   
+    
+    # #replace STL components
+    stl_data_mod <- stl_data
+    stl_data_mod$stl[[1]]$fit$decomposition <- comp_df_mod
+    
+    
+    
+    QR_est <- rolling_trend_QR(stl_data_mod,is_seasonal = is_seasonal, 
+                               periods = periods,
+                               analysis_params = analysis_params)
+    
+    # rol_est <- rolling_trend_alt(stl_data_mod,
+    #                              is_seasonal = is_seasonal, 
+    #                              periods = periods,
+    #                              analysis_params = analysis_params)
+    
+    
+    
+    QR_est <- map(QR_est, ~ {.$seasonal_sf <- scaling_factor[[i]][1]
+    .$noise_sf <-  scaling_factor[[i]][2] 
+    return(.) } )            
+    
+    
+    
+    QR_res_list[[i]] <- QR_est
+  }
+  return(QR_res_list)
+}  
+
+
+###
+analyze_trend_wrapper_QR <- function(data, 
+                                     scaling_factor = list(c(1,1)),
+                                     is_seasonal = TRUE, 
+                                     trend_params = list(initial_amplitude = NULL), 
+                                     analysis_params = list(), mod_fun = NULL, 
+                                     periods = list("full_length"), 
+                                     ...){
+  # Step 1: Get STL decomposition
+  stl_data <- Get_STL(data)
+  
+  # Join with metadata
+  comp_df <- stl_data$stl[[1]]$fit$decomposition
+  
+  # Step 2: Optionally modify the trend component
+  if (is.null(mod_fun)) {
+    message("Keeping original trend component")
+    #estimate_results <- rolling_trend_alt(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
+    estimate_results <- scale_components_QR(stl_data,  periods = periods, 
+                                            scaling_factor = scaling_factor,
+                                            is_seasonal = is_seasonal, 
+                                            analysis_params = analysis_params)
+  } else {
+    trend_params$total_length <- nrow(comp_df)  
+    message("simulating trend using  function provided from 'mod_fun' parameter")
+    
+    
+    # Modify trend component
+    comp_df$trend <- do.call(mod_fun, trend_params)
+    
+    # Update STL data
+    comp_df$final_series <- comp_df$trend + comp_df$remainder
+    comp_df$season_adjust <- comp_df$final_series - comp_df$season_year
+    
+    ###rolling window for   analysis
+    
+    
+    stl_data$stl[[1]]$fit$decomposition <- comp_df
+    
+    #estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
+    #estimate_results <- rolling_trend_alt(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
+    estimate_results <- scale_components_QR(stl_data,  
+                                            periods = periods, 
+                                            scaling_factor = scaling_factor,
+                                            is_seasonal = is_seasonal, 
+                                            analysis_params = analysis_params)
+    
+  }
+  
+  # Step 4: Return the results
+  #return(list(stl_data = stl_data, estimate_results = estimate_results))
+  return(estimate_results)
+}
+
+
+
+# result_QR <- analyze_trend_wrapper_QR(site_data$`GW-00002`,
+#                                       scaling_factor = scaling_factor,
+#                                       periods = list("full_length", c(10,0),c(7,0)),
+#                                       is_seasonal = TRUE,
+#                                       trend_params = cosine_params,
+#                                       mod_fun = generate_cosine_series)
+# 
+# 
+# # Flatten the list and combine into a single tibble
+# test_QR_df <-  result_QR %>%
+#   map_dfr(~ {
+#     bind_rows(.x, .id = "period")
+#   }, .id = "scaling_factor") 
+# 
+# test_QR_df %>% 
+#   ggplot(aes(x = period, y = estimate, colour = ConfCat))+
+#   geom_point(aes(size = 1),show.legend = F)+
+#   geom_linerange(aes(ymin = conf.low, ymax = conf.high, x = period), size = 1.5)+
+#   geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
+#   theme_bw()+
+#   scale_color_manual(values = color_mapping) +  # Use the custom color mapping
+#   labs(title = "Estimates with Confidence Intervals",
+#        x = "Period",
+#        y = "Estimate",
+#        color = "Confidence Category")+
+#   facet_wrap(~scaling_factor)
+
