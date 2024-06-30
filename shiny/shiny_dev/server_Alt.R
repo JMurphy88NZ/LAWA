@@ -39,6 +39,12 @@ server <- function(input, output, session) {
     site_data[[input$site]]
   })
   
+  #functions to clear outputs
+  # clear_gam_outputs <- function() {
+  #   output$gamPlot <- renderPlot({ NULL })
+  #   output$gamSummary <- renderPrint({ NULL })
+  # 
+  
   # Perform STL decomposition on original data and plot components
   output$originalDataPlot <- renderPlot({
     req(data())
@@ -256,8 +262,50 @@ server <- function(input, output, session) {
   #  )
   #  
   # })
-   
+  
+  # # DOWNLOAD HANDLER
+  # output$downloadRollingData <- downloadHandler(
+  #   filename = function() {
+  #     paste("rolling_results-", Sys.Date(), ".zip", sep = "")
+  #   },
+  #   content = function(file) {
+  #     # Create a temporary directory
+  #     temp_dir <- tempdir()
+  #     
+  #     # Shorten file paths for the CSV files
+  #     rolling_file <- file.path(temp_dir, "MK_trend_results.csv")
+  #     MK_file <- file.path(temp_dir, "MK_results.csv")
+  #     orig_data_file <- file.path(temp_dir, "orig_data.csv")
+  #     mod_data_file <- file.path(temp_dir, "sim_data.csv")
+  #     plot_file <- file.path(temp_dir, "slope_plot.png")
+  #     
+  #     # Generate the rolling results CSV
+  #     rolling_results <- result$estimate_results[[1]] %>% select(-data, -MK)
+  #     write.csv(rolling_results, rolling_file, row.names = FALSE)
+  #     
+  #     # MK results
+  #     MK <- result$estimate_results[[1]]$MK
+  #     names(MK) <- result$estimate_results[[1]]$period
+  #     MK_df <- imap_dfr(MK, ~ tibble(period = .y, .x))
+  #     write.csv(MK_df, MK_file, row.names = FALSE)
+  #     
+  #     # Generate the data CSVs
+  #     orig_data <- result$stl_data$orig_data[[1]]
+  #     write.csv(orig_data, orig_data_file, row.names = FALSE)
+  #     
+  #     mod_data <- components(result$stl_data)
+  #     write.csv(mod_data, mod_data_file, row.names = FALSE)
+  #     
+  #     # Save the plot
+  #     ggsave(plot_file, plot = result$estimate_results[[2]], device = "png")
+  #     
+  #     # Create a zip file
+  #     zip::zipr(file, files = c(rolling_file, orig_data_file, mod_data_file, MK_file, plot_file))
+  #   }
+  # )
+  
 
+  # SENSLOPE/MK WRAPPER
   
    observeEvent(input$estimate_wrapper_btn, {
      
