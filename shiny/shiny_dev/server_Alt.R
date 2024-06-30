@@ -137,6 +137,8 @@ server <- function(input, output, session) {
 
   
   #GAM
+  # Reactive value to store result
+  GAM_result <- reactiveVal(NULL)
   
   observeEvent(input$estimate_GAM_btn, {
     
@@ -382,9 +384,14 @@ server <- function(input, output, session) {
    }) 
  
    
+   #QUANTILE REGRESSION
+   
+   # Reactive value to store result
+  QR_df <- reactiveVal(NULL)
+   
    observeEvent(input$estimate_wrapper_QR_btn, {
      
-     # browser()
+
      
      shiny::showNotification("Started QR estimate", type = "message")
      
@@ -473,14 +480,18 @@ server <- function(input, output, session) {
      
      
      
+     
+     # Update the reactive value
+     QR_df(QR_result %>%
+              map_dfr(~ {
+                bind_rows(.x, .id = "period")
+              }, .id = "scaling_factor"))
+     
+     
      output$QRPlots <- renderPlot({
-       
-       QR_df <-  QR_result %>%
-         map_dfr(~ {
-           bind_rows(.x, .id = "period")
-         }, .id = "scaling_factor")
 
-       QR_df %>%
+
+       QR_df() %>%
          ggplot(aes(x = period, y = estimate, colour = ConfCat))+
          geom_point(aes(size = 1),show.legend = F)+
          geom_linerange(aes(ymin = conf.low, ymax = conf.high, x = period), size = 1.5)+
@@ -499,9 +510,71 @@ server <- function(input, output, session) {
    })
      
    # DOWNLOAD HANDLER
+   # output$downloadAll <- downloadHandler(
+   #   
+   #   
+   #   filename = function() {
+   #     paste("MK_results-", Sys.Date(), ".zip", sep = "")
+   #   },
+   #   content = function(file) {
+   #     # Create a temporary directory
+   #     temp_dir <- tempdir()
+   #     
+   #     # Shorten file paths for the CSV files
+   #     MK_file <- file.path(temp_dir, "MK_results.csv")
+   #     MK_data_rds<- file.path(temp_dir, "MK_data.rds")
+   #     
+   #     QR_file <- file.path(temp_dir, "QR_results.csv")
+   #     
+   #     # orig_data_file <- file.path(temp_dir, "orig_data.csv")
+   #     # mod_data_file <- file.path(temp_dir, "sim_data.csv")
+   #     # plot_file <- file.path(temp_dir, "slope_plot.png")
+   #     
+   #     
+   #     # MK results
+   #     
+   #     req(MK_result())
+   #     
+   #     MK_list <- map(MK_result(), ~ select(.[[1]], 1:4, MK) %>% unnest(MK) )
+   #     MK_df <-  map_df(MK_list, ~ tibble(.))
+   #     
+   #     write.csv(MK_df, MK_file, row.names = FALSE)
+   #     
+   #     #data estimates are baesd on
+   #     MK_data_list <- map(MK_result(), ~ select(.[[1]], 1:4, data) %>% unnest(data) )
+   #     
+   #     saveRDS(MK_data_list, MK_data_rds)
+   #     
+   #     
+   #     #QR results
+   #     req(QR_df())
+   #     
+   # 
+   #     write.csv(QR_df(), QR_file, row.names = FALSE)
+   #     
+   #     
+   #     # GAM Result
+   #     
+   #     # # Generate the data CSVs
+   #     # orig_data <- result$stl_data$orig_data[[1]]
+   #     # write.csv(orig_data, orig_data_file, row.names = FALSE)
+   #     # 
+   #     # mod_data <- components(result$stl_data)
+   #     # write.csv(mod_data, mod_data_file, row.names = FALSE)
+   #     # 
+   #     # # Save the plot
+   #     # ggsave(plot_file, plot = result$estimate_results[[2]], device = "png")
+   #     
+   #     # Create a zip file
+   #     zip::zipr(file, files = c(MK_file, MK_data_rds,QR_file))
+   #     
+   #     
+   #   }
+   # )
+   
+   #DOWNLOAD HANDLER
+   
    output$downloadAll <- downloadHandler(
-     
-     
      filename = function() {
        paste("MK_results-", Sys.Date(), ".zip", sep = "")
      },
@@ -509,57 +582,50 @@ server <- function(input, output, session) {
        # Create a temporary directory
        temp_dir <- tempdir()
        
+       
        # Shorten file paths for the CSV files
        MK_file <- file.path(temp_dir, "MK_results.csv")
-       MK_data_rds<- file.path(temp_dir, "MK_data.rds")
-       
+       MK_data_rds <- file.path(temp_dir, "MK_data.rds")
        QR_file <- file.path(temp_dir, "QR_results.csv")
        
-       # orig_data_file <- file.path(temp_dir, "orig_data.csv")
-       # mod_data_file <- file.path(temp_dir, "sim_data.csv")
-       # plot_file <- file.path(temp_dir, "slope_plot.png")
-       
+       # Initialize an empty list to hold files to be zipped
+       files_to_zip <- c()
        
        # MK results
-       
-       req(MK_result())
-       
-       MK_list <- map(MK_result(), ~ select(.[[1]], 1:4, MK) %>% unnest(MK) )
-       MK_df <-  map_df(MK_list, ~ tibble(.))
-       
-       write.csv(MK_df, MK_file, row.names = FALSE)
-       
-       #data estimates are baesd on
-       MK_data_list <- map(MK_result(), ~ select(.[[1]], 1:4, data) %>% unnest(data) )
-       
-       saveRDS(MK_data_list, MK_data_rds)
-       
+       if (!is.null(MK_result())) {
+         MK_list <- map(MK_result(), ~ select(.[[1]], 1:4, MK) %>% unnest(MK))
+         MK_df <- map_df(MK_list, ~ tibble(.))
+         write.csv(MK_df, MK_file, row.names = FALSE)
+         files_to_zip <- c(files_to_zip, MK_file)
+         
+         # Data estimates are based on
+         MK_data_list <- map(MK_result(), ~ select(.[[1]], 1:4, data) %>% unnest(data))
+         saveRDS(MK_data_list, MK_data_rds)
+         files_to_zip <- c(files_to_zip, MK_data_rds)
+       } else {
+         showNotification("MK results are not available.", type = "error")
+       }
        
        # QR results
-       # QR_df <-  QR_result %>%
-       #   map_dfr(~ {
-       #     bind_rows(.x, .id = "period")
-       #   }, .id = "scaling_factor")
-       # 
-       # QR_df %>% write_csv(.,  QR_file, row.names = FALSE)
+       if (!is.null(QR_df())) {
+         write.csv(QR_df(), QR_file, row.names = FALSE)
+         files_to_zip <- c(files_to_zip, QR_file)
+       } else {
+         showNotification("QR results are not available.", type = "error")
+       }
        
+       # Check if all files exist
+       files_to_zip <- Filter(file.exists, as.character(files_to_zip))
        
-       # GAM Result
-       
-       # # Generate the data CSVs
-       # orig_data <- result$stl_data$orig_data[[1]]
-       # write.csv(orig_data, orig_data_file, row.names = FALSE)
-       # 
-       # mod_data <- components(result$stl_data)
-       # write.csv(mod_data, mod_data_file, row.names = FALSE)
-       # 
-       # # Save the plot
-       # ggsave(plot_file, plot = result$estimate_results[[2]], device = "png")
-       
-       # Create a zip file
-       zip::zipr(file, files = c(MK_file, MK_data_rds))
-       
-       
+       # Ensure there is at least one file to zip
+       if (length(files_to_zip) > 0) {
+         
+         
+         # Create a zip file
+         zip::zipr(file, files = files_to_zip)
+       } else {
+         showNotification("No data available to download.", type = "error")
+       }
      }
    )
    
