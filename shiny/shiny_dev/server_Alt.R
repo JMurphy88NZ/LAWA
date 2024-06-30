@@ -212,100 +212,10 @@ server <- function(input, output, session) {
   
  
     
-    # #OUTPUT
-    # output$simcomponentsPlot <- renderPlot({
-    #   autoplot(components(result$stl_data$stl[[1]]$fit))
-    # })
-    
-
-   
-  #  output$downloadRollingData <- downloadHandler(
-  #    filename = function() {
-  #      paste("rolling_results-", Sys.Date(), ".zip", sep="")
-  #    },
-  #    content = function(file) {
-  #      # Create a temporary directory
-  #      temp_dir <- tempdir()
-  #      
-  #      # File paths for the CSV files
-  #      rolling_file <- file.path(temp_dir, "rolling_results.csv")
-  #      MK_file <- file.path(temp_dir, "MK_results.csv")
-  #      orig_data_file <- file.path(temp_dir, "orig_data.csv")
-  #      mod_data_file <- file.path(temp_dir, "sim_data.csv")
-  #      plot_file <- file.path(temp_dir, "slope_plot.png")
-  #      # Generate the rolling results CSV
-  #      rolling_results <- result$estimate_results[[1]] %>% select(-data, -MK)
-  #      write.csv(rolling_results, rolling_file, row.names = FALSE)
-  #      
-  #      #MK results
-  #      MK <- result$estimate_results[[1]]$MK
-  #      names(MK) <- result$estimate_results[[1]]$period
-  #      MK_df <- imap_dfr(MK, ~tibble(period = .y,.x))
-  #      write.csv( MK_df, MK_file, row.names = FALSE)
-  #      
-  #      
-  #      # Generate the  data CSVs
-  #      orig_data <- result$stl_data$orig_data[[1]]
-  #      write.csv(orig_data, orig_data_file, row.names = FALSE)
-  #      
-  #      mod_data <- components(result$stl_data)
-  #      write.csv( mod_data, mod_data_file, row.names = FALSE)
-  #      
-  #      
-  #      #content = function(file) {
-  #        ggsave(plot_file, plot = result$estimate_results[[2]], device = "png")
-  #     # }
-  #      
-  #      # Create a zip file
-  #      zip::zip(file, files = c(rolling_file, orig_data_file, mod_data_file, MK_file,plot_file))
-  #    }
-  #  )
-  #  
-  # })
-  
-  # # DOWNLOAD HANDLER
-  # output$downloadRollingData <- downloadHandler(
-  #   filename = function() {
-  #     paste("rolling_results-", Sys.Date(), ".zip", sep = "")
-  #   },
-  #   content = function(file) {
-  #     # Create a temporary directory
-  #     temp_dir <- tempdir()
-  #     
-  #     # Shorten file paths for the CSV files
-  #     rolling_file <- file.path(temp_dir, "MK_trend_results.csv")
-  #     MK_file <- file.path(temp_dir, "MK_results.csv")
-  #     orig_data_file <- file.path(temp_dir, "orig_data.csv")
-  #     mod_data_file <- file.path(temp_dir, "sim_data.csv")
-  #     plot_file <- file.path(temp_dir, "slope_plot.png")
-  #     
-  #     # Generate the rolling results CSV
-  #     rolling_results <- result$estimate_results[[1]] %>% select(-data, -MK)
-  #     write.csv(rolling_results, rolling_file, row.names = FALSE)
-  #     
-  #     # MK results
-  #     MK <- result$estimate_results[[1]]$MK
-  #     names(MK) <- result$estimate_results[[1]]$period
-  #     MK_df <- imap_dfr(MK, ~ tibble(period = .y, .x))
-  #     write.csv(MK_df, MK_file, row.names = FALSE)
-  #     
-  #     # Generate the data CSVs
-  #     orig_data <- result$stl_data$orig_data[[1]]
-  #     write.csv(orig_data, orig_data_file, row.names = FALSE)
-  #     
-  #     mod_data <- components(result$stl_data)
-  #     write.csv(mod_data, mod_data_file, row.names = FALSE)
-  #     
-  #     # Save the plot
-  #     ggsave(plot_file, plot = result$estimate_results[[2]], device = "png")
-  #     
-  #     # Create a zip file
-  #     zip::zipr(file, files = c(rolling_file, orig_data_file, mod_data_file, MK_file, plot_file))
-  #   }
-  # )
-  
-
   # SENSLOPE/MK WRAPPER
+  
+  # Reactive value to store result
+  MK_result <- reactiveVal(NULL)
   
    observeEvent(input$estimate_wrapper_btn, {
      
@@ -384,7 +294,7 @@ server <- function(input, output, session) {
     
      
      
-     result <- tryCatch({analyze_trend_wrapper(input_data, 
+     MK_result <- tryCatch({analyze_trend_wrapper(input_data, 
                                                periods = periods, 
                                                scaling_factor = scaling_factors,
                                                is_seasonal = TRUE,
@@ -397,8 +307,12 @@ server <- function(input, output, session) {
      })
      
      
+     # Update the reactive value
+     MK_result(MK_result)
+     
+     
      output$WrapperPlot <- renderUI({
-       plot_list <- map(result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
+       plot_list <- map(MK_result , ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
        noise_sf <- unique(.x[[1]]$noise_sf)
 
        plot <- .x[[2]]+
@@ -420,7 +334,7 @@ server <- function(input, output, session) {
      # 
      output$WrapperMKPlots <- renderUI({
 
-       MK_data_list <-  map(result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
+       MK_data_list <-  map(MK_result , ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
                                          noise_sf <- unique(.x[[1]]$noise_sf)
                                          #MK_data <- imap_dfr(MK_data, ~tibble(period = .y,.x))
                                          MK_data <- .x[[1]]$MK
@@ -462,6 +376,8 @@ server <- function(input, output, session) {
      # output$summary2 <- renderPrint({
      #   result[[2]][[1]]
      # })
+    
+     
      
    }) 
  
@@ -543,7 +459,7 @@ server <- function(input, output, session) {
      
      
      
-     result <- tryCatch({analyze_trend_wrapper_QR(input_data, 
+     QR_result <- tryCatch({analyze_trend_wrapper_QR(input_data, 
                                                periods = periods, 
                                                scaling_factor = scaling_factors,
                                                is_seasonal = TRUE,
@@ -559,7 +475,7 @@ server <- function(input, output, session) {
      
      output$QRPlots <- renderPlot({
        
-       QR_df <-  result %>%
+       QR_df <-  QR_result %>%
          map_dfr(~ {
            bind_rows(.x, .id = "period")
          }, .id = "scaling_factor")
@@ -582,5 +498,70 @@ server <- function(input, output, session) {
      
    })
      
+   # DOWNLOAD HANDLER
+   output$downloadAll <- downloadHandler(
+     
+     
+     filename = function() {
+       paste("MK_results-", Sys.Date(), ".zip", sep = "")
+     },
+     content = function(file) {
+       # Create a temporary directory
+       temp_dir <- tempdir()
+       
+       # Shorten file paths for the CSV files
+       MK_file <- file.path(temp_dir, "MK_results.csv")
+       MK_data_rds<- file.path(temp_dir, "MK_data.rds")
+       
+       QR_file <- file.path(temp_dir, "QR_results.csv")
+       
+       # orig_data_file <- file.path(temp_dir, "orig_data.csv")
+       # mod_data_file <- file.path(temp_dir, "sim_data.csv")
+       # plot_file <- file.path(temp_dir, "slope_plot.png")
+       
+       
+       # MK results
+       
+       req(MK_result())
+       
+       MK_list <- map(MK_result(), ~ select(.[[1]], 1:4, MK) %>% unnest(MK) )
+       MK_df <-  map_df(MK_list, ~ tibble(.))
+       
+       write.csv(MK_df, MK_file, row.names = FALSE)
+       
+       #data estimates are baesd on
+       MK_data_list <- map(MK_result(), ~ select(.[[1]], 1:4, data) %>% unnest(data) )
+       
+       saveRDS(MK_data_list, MK_data_rds)
+       
+       
+       # QR results
+       # QR_df <-  QR_result %>%
+       #   map_dfr(~ {
+       #     bind_rows(.x, .id = "period")
+       #   }, .id = "scaling_factor")
+       # 
+       # QR_df %>% write_csv(.,  QR_file, row.names = FALSE)
+       
+       
+       # GAM Result
+       
+       # # Generate the data CSVs
+       # orig_data <- result$stl_data$orig_data[[1]]
+       # write.csv(orig_data, orig_data_file, row.names = FALSE)
+       # 
+       # mod_data <- components(result$stl_data)
+       # write.csv(mod_data, mod_data_file, row.names = FALSE)
+       # 
+       # # Save the plot
+       # ggsave(plot_file, plot = result$estimate_results[[2]], device = "png")
+       
+       # Create a zip file
+       zip::zipr(file, files = c(MK_file, MK_data_rds))
+       
+       
+     }
+   )
+   
 
 }

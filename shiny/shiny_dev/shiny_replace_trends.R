@@ -1024,7 +1024,7 @@ analyze_trend_wrapper <- function(data,
 # #e.g.,2  c(0,2): remove seasonal, double  remainder component
 # scaling_factor <- list(c(1,1), c(0,1), c(2,1), c(2,2))
 # 
-         # result<-        analyze_trend_wrapper(site_data$`GW-00002`,
+         # MK_result<-        analyze_trend_wrapper(site_data$`GW-00002`,
          #                                 scaling_factor = scaling_factor,
          #                                 periods = list("full_length", c(10,5)),
          #                                 is_seasonal = TRUE,
@@ -1041,15 +1041,39 @@ analyze_trend_wrapper <- function(data,
          #   result[[1]][[2]]+
          #     labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
          # 
-         # 
-         #   plot_list <- map(result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
-         #                  noise_sf <- unique(.x[[1]]$noise_sf)
-         # 
-         #                  plot <- .x[[2]]+
-         #                  labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
-         # 
-         #                  return(plot)
-         #                  })
+#          # 
+#            plot_list <- map(MK_result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
+#                           noise_sf <- unique(.x[[1]]$noise_sf)
+# 
+#                           plot <- .x[[2]]+
+#                           labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
+# 
+#                           return(plot)
+#                           })
+#            
+#            
+#            MK_results_list <- map(MK_result, ~ {seasonal_sf <- unique(.x[[1]]$seasonal_sf)
+#            noise_sf <- unique(.x[[1]]$noise_sf)
+#            
+#            MK <- .x[[1]]
+#      
+#            
+#            return(plot)
+#            })  
+#            
+#            MK_list <- map(MK_result, ~ select(.[[1]], 1:4, MK) %>% unnest(MK) )
+#                  
+#            MK_df <-  map_df(MK_list, ~ tibble(.))
+#         
+#            
+#            
+# MK_data_list <- map(MK_result, ~ select(.[[1]], 1:4, data) %>% unnest(data) )
+
+#MK_data_df <-  map_df(MK_data_list, ~ tibble(.))
+
+
+
+
          # 
          #   # Dynamically wrap plots
          #   wrapped_plots <- do.call(patchwork::wrap_plots, c(plot_list, ncol = 1))
