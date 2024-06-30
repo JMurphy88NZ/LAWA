@@ -997,8 +997,7 @@ analyze_trend_wrapper <- function(data,
     
     stl_data$stl[[1]]$fit$decomposition <- comp_df
     
-    #estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
-    #estimate_results <- rolling_trend_alt(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
+ 
     estimate_results <- scale_components(stl_data,  
                                          periods = periods, 
                                          scaling_factor = scaling_factor,
@@ -1139,6 +1138,65 @@ get_QR_est <- function(data, trm = "Month",
 }
 
 
+rolling_trend_QR <- function(stl_data, periods = list("full_length", c(5, 0)), 
+                             is_seasonal = TRUE, analysis_params = list(),
+                             ...) {
+  
+  # Container lists
+  complist <- list()
+  senslope_res_list <- list()
+  
+  comp_df <- components(stl_data) %>% as_tibble()
+  
+  #Removed getting of orig data, as already from other function.
+  
+  #needs this name for LWP functions
+  comp_df$RawValue <- comp_df$final_series
+  
+  
+  # Iterate over each period and perform trend analysis
+  for (period in periods) {
+    
+    if (is.character(period) && period == "full_length") {
+      
+      
+      #get date range in string
+      date_range <- range(comp_df$yearmon)
+      date_range <- paste(date_range[1],   date_range[2], sep = ":")
+      
+      # Full length analysis without filtering
+      senslope_res <- do.call(get_QR_est, c(list(as.data.frame(comp_df)), analysis_params))
+      
+      
+      senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- senslope_res 
+      
+      
+      
+    } else if (is.numeric(period) && length(period) == 2) {
+      
+      # Filter the data for the specified period
+      comp_df_filt <- filter_custom_period(comp_df, period)
+      #get date range in string
+      date_range <- range(comp_df_filt$yearmon)
+      date_range <- paste(date_range[1],   date_range[2], sep = ":")
+      
+      
+      senslope_res <- do.call(get_QR_est, c(list(as.data.frame(comp_df_filt)), analysis_params))
+      
+      
+      senslope_res_list[[paste0("period_", paste(period, collapse = "_"))]] <- senslope_res 
+      
+      
+    } else {
+      stop("Invalid period specified. Period should be 'full_length' or a numeric vector of length 2.")
+    }
+    
+    
+  }
+  
+  
+  return( senslope_res_list)
+}
 # scale components
 scale_components_QR<- function(stl_data, 
                                scaling_factor = list(c(1,1)), 
@@ -1245,8 +1303,7 @@ analyze_trend_wrapper_QR <- function(data,
     
     stl_data$stl[[1]]$fit$decomposition <- comp_df
     
-    #estimate_results <- scale_stl_noise(stl_data, lambda = lambda, is_seasonal = is_seasonal, analysis_params = analysis_params)
-    #estimate_results <- rolling_trend_alt(stl_data, periods = periods, is_seasonal = is_seasonal, analysis_params = analysis_params) 
+ 
     estimate_results <- scale_components_QR(stl_data,  
                                             periods = periods, 
                                             scaling_factor = scaling_factor,
