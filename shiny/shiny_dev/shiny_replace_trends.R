@@ -640,6 +640,13 @@ analyze_GAM_wrapper <- function(data,
 }
 
 
+# test_GAM <- analyze_GAM_wrapper(site_data$`GW-00002`,
+#                                is_seasonal = TRUE,
+#                                trend_params = cosine_params,
+#                                mod_fun = generate_cosine_series)
+
+
+
 # cosine_params <-  list(
 #                        decay_rate = 0.01,
 #                        initial_amplitude = 5,
@@ -817,7 +824,11 @@ rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)),
                               is_seasonal = TRUE, analysis_params = list(),
                               ...) {
   
-  # Container lists
+  #meta_data
+  site_ID <- stl_data$orig_data[[1]]$lawa_site_id[1]
+  measurement <- stl_data$orig_data[[1]]$measurement[1]
+  
+   # Container lists
   complist <- list()
   senslope_res_list <- list()
   
@@ -842,7 +853,9 @@ rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)),
       } 
       
       # Create a data frame with the results
-      slope_df <- tibble(date_range = date_range,
+      slope_df <- tibble(site_ID = site_ID,
+                         measurement =   measurement, 
+                         date_range = date_range,
                          est_slope = senslope_res$AnnualSenSlope / 12,
                          lci = senslope_res$Sen_Lci / 12,
                          uci = senslope_res$Sen_Uci / 12,
@@ -869,7 +882,9 @@ rolling_trend_alt <- function(stl_data, periods = list("full_length", c(5, 0)),
       }
       
       # Create a data frame with the results
-      slope_df <- tibble(date_range = date_range,
+      slope_df <- tibble(site_ID = site_ID,
+                         measurement =   measurement, 
+                         date_range = date_range,
                          est_slope = senslope_res$AnnualSenSlope / 12,
                          lci = senslope_res$Sen_Lci / 12,
                          uci = senslope_res$Sen_Uci / 12,
@@ -1355,9 +1370,9 @@ analyze_trend_wrapper_QR <- function(data,
 # test_QR_df <-  result_QR %>%
 #   map_dfr(~ {
 #     bind_rows(.x, .id = "period")
-#   }, .id = "scaling_factor") 
-# 
-# test_QR_df %>% 
+#   }, .id = "scaling_factor")
+# # 
+# test_QR_df %>%
 #   ggplot(aes(x = period, y = estimate, colour = ConfCat))+
 #   geom_point(aes(size = 1),show.legend = F)+
 #   geom_linerange(aes(ymin = conf.low, ymax = conf.high, x = period), size = 1.5)+

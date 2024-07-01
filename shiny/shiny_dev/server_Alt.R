@@ -318,7 +318,7 @@ server <- function(input, output, session) {
        noise_sf <- unique(.x[[1]]$noise_sf)
 
        plot <- .x[[2]]+
-         labs(title = paste("Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
+         labs(title = paste("MK/SenSlope results. Seasonal SF:", seasonal_sf, ",", " Noise SF: ",noise_sf ))
 
        return(plot)
        })
@@ -355,7 +355,7 @@ server <- function(input, output, session) {
 
                                   get_ConfCat_from_MK_data(.) %>%
                                         get_MK_plot(.) +
-                                        labs(title = paste("Seasonal SF:",
+                                        labs(title = paste("MK/SenSlope results. Seasonal SF:",
                                                             seasonal_sf, ",",
                                                             " Noise SF: ",noise_sf ) )
                                               } )
@@ -498,7 +498,7 @@ server <- function(input, output, session) {
          geom_hline(yintercept = 0, linetype = "dashed", size = .3)+
          theme_bw()+
          scale_color_manual(values = color_mapping) +  # Use the custom color mapping
-         labs(title = "Estimates with Confidence Intervals",
+         labs(title = "Estimates from Quantile Regression",
               x = "Period",
               y = "Estimate",
               color = "Confidence Category")+
@@ -593,13 +593,13 @@ server <- function(input, output, session) {
        
        # MK results
        if (!is.null(MK_result())) {
-         MK_list <- map(MK_result(), ~ select(.[[1]], 1:4, MK) %>% unnest(MK))
+         MK_list <- map(MK_result(), ~ select(.[[1]], 1:4, site_ID, measurement, MK) %>% unnest(MK))
          MK_df <- map_df(MK_list, ~ tibble(.))
          write.csv(MK_df, MK_file, row.names = FALSE)
          files_to_zip <- c(files_to_zip, MK_file)
          
          # Data estimates are based on
-         MK_data_list <- map(MK_result(), ~ select(.[[1]], 1:4, data) %>% unnest(data))
+         MK_data_list <- map(MK_result(), ~ select(.[[1]], 1:4,site_ID, measurement, data) %>% unnest(data))
          saveRDS(MK_data_list, MK_data_rds)
          files_to_zip <- c(files_to_zip, MK_data_rds)
        } else {
